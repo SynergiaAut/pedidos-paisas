@@ -142,12 +142,11 @@ export function TopBar() {
         },
         {
             title: "Inventario",
-            description: "Productos",
-            href: "/inventario", // Future
+            description: "Productos & Control",
+            href: "/inventario",
             icon: Archive,
             color: "text-cyan-500",
             bgColor: "bg-cyan-500/10",
-            disabled: true,
         },
     ];
 

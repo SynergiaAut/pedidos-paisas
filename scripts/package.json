@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "node-firebird": "^2.0.2"
+  }
+}

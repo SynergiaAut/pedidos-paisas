@@ -1,0 +1,1269 @@
+openapi: 3.0.3
+
+info:
+  title: Flex CRM API
+  description: |
+    API REST de integración entre el ERP Millenium Enterprise y aplicaciones clientes.
+
+    ## Autenticación
+    Todos los endpoints de negocio requieren el token JWT en el **header** `token`.
+    El token se obtiene en `POST /crm/empresa/login` y tiene una duración configurable.  
+    Al expirar, se renueva con `POST /crm/empresa/token`.
+
+    ## Convención de respuesta
+    Todas las respuestas siguen el mismo envelope:
+    ```json
+    { "ok": true,  "data": [...] }   // éxito
+    { "ok": false, "message": "..." } // error
+    ```
+
+    ## Fechas
+    Todas las fechas se envían y reciben en formato `YYYY-MM-DD`.
+
+  version: 1.0.0
+  contact:
+    name: Intelligent Business SAS
+    email: rmurillo@ibla.co
+
+servers:
+  - url: https://me.services.ibla.co
+    description: Producción
+
+tags:
+  - name: Auth
+    description: Registro, login y gestión de tokens
+  - name: Clientes
+    description: Consulta de terceros/clientes en el ERP Millenium Enterprise
+  - name: Productos
+    description: Consulta de artículos/productos en el ERP Millenium Enterprise
+  - name: Pedidos
+    description: Consulta de pedidos (órdenes de venta)
+  - name: Cartera
+    description: Consulta de documentos de cartera (deudas)
+  - name: Facturas
+    description: Consulta de facturas de venta
+  - name: Presupuesto
+    description: Consulta de presupuestos de venta
+  - name: Cotizaciones
+    description: Consulta de cotizaciones
+  - name: Observabilidad
+    description: Estado interno del servicio y conexiones a la base de datos
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECURITY SCHEMES
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    TokenHeader:
+      type: apiKey
+      in: header
+      name: token
+      description: JWT obtenido en `/crm/empresa/login`
+
+    HealthBearer:
+      type: http
+      scheme: bearer
+      description: Secret estático para endpoints `/health`. Ver `HEALTH_SECRET` en compose.yml.
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Token no válido"
+
+    OkEnvelope:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+
+    LoginRequest:
+      type: object
+      required: [correo, clave]
+      properties:
+        correo:
+          type: string
+          format: email
+          example: "admin@miempresa.com"
+        clave:
+          type: string
+          format: password
+          example: "MiClave123"
+
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/OkEnvelope'
+        - type: object
+          properties:
+            token:
+              type: string
+              description: JWT válido para usar en el header `token`
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            nombre:
+              type: string
+              example: "Juan Pérez"
+            correo:
+              type: string
+              example: "admin@miempresa.com"
+
+    RenewTokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    CustomerList:
+      allOf:
+        - $ref: '#/components/schemas/OkEnvelope'
+        - type: object
+          properties:
+            customers:
+              type: array
+              items:
+                $ref: '#/components/schemas/Customer'
+
+    Customer:
+      type: object
+      description: Tercero/cliente del ERP Millenium Enterprise
+      properties:
+        tercero:
+          type: string
+          description: Código único del tercero en Millenium Enterprise
+          example: "900054835"
+        nombre:
+          type: string
+          example: "EMPRESA EJEMPLO S.A.S"
+        ciudad:
+          type: string
+          example: "BOGOTÁ"
+        telefono:
+          type: string
+          example: "3001234567"
+        email:
+          type: string
+          example: "contacto@empresa.com"
+
+    ProductList:
+      allOf:
+        - $ref: '#/components/schemas/OkEnvelope'
+        - type: object
+          properties:
+            products:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+
+    Product:
+      type: object
+      description: Artículo/producto del ERP Millenium Enterprise
+      properties:
+        item:
+          type: string
+          description: Código del artículo en Millenium Enterprise
+          example: "ART-001"
+        descripcion:
+          type: string
+          example: "TORNILLO 1/2 PULGADA"
+        precio:
+          type: number
+          format: float
+          example: 1500.00
+        existencia:
+          type: number
+          example: 250
+
+    OrderList:
+      allOf:
+        - $ref: '#/components/schemas/OkEnvelope'
+        - type: object
+          properties:
+            pedidos:
+              type: array
+              items:
+                $ref: '#/components/schemas/Order'
+
+    Order:
+      type: object
+      description: Pedido/orden de venta en Millenium Enterprise
+      properties:
+        tipodoc:
+          type: string
+          description: Tipo de documento del pedido
+          example: "PV"
+        numero:
+          type: string
+          description: Número del pedido
+          example: "12345"
+        fecha:
+          type: string
+          format: date
+          example: "2026-04-01"
+        cliente:
+          type: string
+          example: "900054835"
+        total:
+          type: number
+          format: float
+          example: 350000.00
+
+    DebitList:
+      allOf:
+        - $ref: '#/components/schemas/OkEnvelope'
+        - type: object
+          properties:
+            debits:
+              type: array
+              items:
+                $ref: '#/components/schemas/Debit'
+
+    Debit:
+      type: object
+      description: Documento de cartera pendiente
+      properties:
+        cliente:
+          type: string
+          example: "900054835"
+        tipodoc:
+          type: string
+          example: "FV"
+        numero:
+          type: string
+          example: "9876"
+        fecha:
+          type: string
+          format: date
+          example: "2026-03-15"
+        saldo:
+          type: number
+          format: float
+          example: 1200000.00
+        vencimiento:
+          type: string
+          format: date
+          example: "2026-04-15"
+
+    InvoiceList:
+      allOf:
+        - $ref: '#/components/schemas/OkEnvelope'
+        - type: object
+          properties:
+            invoices:
+              type: array
+              items:
+                $ref: '#/components/schemas/Invoice'
+
+    Invoice:
+      type: object
+      description: Factura de venta
+      properties:
+        tipodoc:
+          type: string
+          example: "FV"
+        numero:
+          type: string
+          example: "9876"
+        fecha:
+          type: string
+          format: date
+          example: "2026-03-15"
+        cliente:
+          type: string
+          example: "900054835"
+        total:
+          type: number
+          format: float
+          example: 2500000.00
+
+    SalesbudgetList:
+      allOf:
+        - $ref: '#/components/schemas/OkEnvelope'
+        - type: object
+          properties:
+            salesbudgets:
+              type: array
+              items:
+                $ref: '#/components/schemas/Salesbudget'
+
+    Salesbudget:
+      type: object
+      description: Presupuesto de ventas por vendedor/mes
+      properties:
+        anno:
+          type: integer
+          example: 2026
+        mes:
+          type: integer
+          example: 4
+        vendedor:
+          type: string
+          example: "V001"
+        presupuesto:
+          type: number
+          format: float
+          example: 50000000.00
+        ventas:
+          type: number
+          format: float
+          example: 32000000.00
+
+    QuoteList:
+      allOf:
+        - $ref: '#/components/schemas/OkEnvelope'
+        - type: object
+          properties:
+            quotes:
+              type: array
+              items:
+                $ref: '#/components/schemas/Quote'
+
+    Quote:
+      type: object
+      description: Cotización de venta
+      properties:
+        tipodoc:
+          type: string
+          example: "CT"
+        numero:
+          type: string
+          example: "555"
+        fecha:
+          type: string
+          format: date
+          example: "2026-04-01"
+        cliente:
+          type: string
+          example: "900054835"
+        total:
+          type: number
+          format: float
+          example: 800000.00
+
+    HealthResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        uptime:
+          type: integer
+          description: Segundos que lleva el proceso corriendo
+          example: 3600
+        pools:
+          type: array
+          items:
+            $ref: '#/components/schemas/PoolStat'
+        circuits:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/CircuitStat'
+        warning:
+          type: string
+          nullable: true
+          description: Mensaje de alerta si hay conexiones sin liberar. `null` si todo está bien.
+          example: null
+
+    PoolStat:
+      type: object
+      properties:
+        database:
+          type: string
+          description: "Clave del pool: host:puerto:ruta_db"
+          example: "127.0.0.1:13049:/var/db/empresa.fdb"
+        age:
+          type: integer
+          description: Milisegundos desde que se creó el pool
+          example: 86400000
+        acquired:
+          type: integer
+          description: Total de conexiones tomadas del pool desde el inicio
+          example: 1200
+        released:
+          type: integer
+          description: Total de conexiones devueltas al pool
+          example: 1200
+        errors:
+          type: integer
+          description: Errores al obtener conexión (timeouts, NAT expirado, etc.)
+          example: 0
+        inUse:
+          type: integer
+          description: Conexiones actualmente en uso. Si > 0 sin requests activos, hay leak.
+          example: 0
+
+    CircuitStat:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [closed, open, half-open]
+          description: |
+            - `closed`: normal, las conexiones fluyen.
+            - `open`: circuito disparado por 3 fallos consecutivos. Rechaza requests por 30s.
+            - `half-open`: probando si el servidor de base de datos volvió.
+          example: "closed"
+        failures:
+          type: integer
+          description: Fallos consecutivos acumulados
+          example: 0
+        openedAt:
+          type: integer
+          nullable: true
+          description: Timestamp (ms) en que se abrió el circuito. `null` si está cerrado.
+          example: null
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+
+  /crm/empresa/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión
+      description: |
+        Autentica un usuario y devuelve el JWT que debe usarse en el header `token`
+        de todos los demás endpoints.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              correo: "admin@miempresa.com"
+              clave: "MiClave123"
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                ok: true
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                nombre: "Juan Pérez"
+                correo: "admin@miempresa.com"
+        '400':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                ok: false
+                message: "Correo o contraseña incorrectos"
+
+  /crm/empresa/token:
+    post:
+      tags: [Auth]
+      summary: Renovar token
+      description: |
+        Renueva el JWT antes de que expire. Enviar el token actual (aún válido)
+        en el body Y en el header `token`.
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenewTokenRequest'
+      responses:
+        '200':
+          description: Token renovado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── CLIENTES ──────────────────────────────────────────────────────────────
+
+  /crm/all/customer:
+    post:
+      tags: [Clientes]
+      summary: Listar todos los clientes
+      description: |
+        Retorna todos los terceros activos en el ERP Millenium Enterprise
+        asociada al usuario autenticado.
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: "Body vacío `{}` — la autenticación se hace por header."
+            example: {}
+      responses:
+        '200':
+          description: Lista de clientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/one/customer:
+    post:
+      tags: [Clientes]
+      summary: Obtener un cliente por código
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tercero]
+              properties:
+                tercero:
+                  type: string
+                  description: Código del tercero en Millenium Enterprise
+                  example: "900054835"
+            example:
+              tercero: "900054835"
+      responses:
+        '200':
+          description: Datos del cliente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── PRODUCTOS ─────────────────────────────────────────────────────────────
+
+  /crm/all/product:
+    post:
+      tags: [Productos]
+      summary: Listar todos los productos
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+            example: {}
+      responses:
+        '200':
+          description: Lista de productos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/one/product:
+    post:
+      tags: [Productos]
+      summary: Obtener un producto por código
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [item]
+              properties:
+                item:
+                  type: string
+                  description: Código del artículo en Millenium Enterprise
+                  example: "ART-001"
+            example:
+              item: "ART-001"
+      responses:
+        '200':
+          description: Datos del producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── PEDIDOS ───────────────────────────────────────────────────────────────
+
+  /crm/all/order:
+    post:
+      tags: [Pedidos]
+      summary: Listar pedidos por rango de fechas
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fechainicial, fechafinal]
+              properties:
+                fechainicial:
+                  type: string
+                  format: date
+                  description: Fecha de inicio del rango (inclusive)
+                  example: "2026-04-01"
+                fechafinal:
+                  type: string
+                  format: date
+                  description: Fecha de fin del rango (inclusive)
+                  example: "2026-04-30"
+            example:
+              fechainicial: "2026-04-01"
+              fechafinal: "2026-04-30"
+      responses:
+        '200':
+          description: Lista de pedidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/one/order:
+    post:
+      tags: [Pedidos]
+      summary: Obtener un pedido por tipo y número
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tipodoc, numero]
+              properties:
+                tipodoc:
+                  type: string
+                  description: Tipo de documento del pedido (según configuración de Millenium Enterprise)
+                  example: "PV"
+                numero:
+                  type: string
+                  description: Número del pedido
+                  example: "12345"
+            example:
+              tipodoc: "PV"
+              numero: "12345"
+      responses:
+        '200':
+          description: Datos del pedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── CARTERA ───────────────────────────────────────────────────────────────
+
+  /crm/all/debit:
+    post:
+      tags: [Cartera]
+      summary: Listar toda la cartera al corte de una fecha
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fechafinal]
+              properties:
+                fechafinal:
+                  type: string
+                  format: date
+                  description: Fecha de corte para el cálculo de cartera
+                  example: "2026-04-30"
+            example:
+              fechafinal: "2026-04-30"
+      responses:
+        '200':
+          description: Documentos de cartera pendientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DebitList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/one/debit:
+    post:
+      tags: [Cartera]
+      summary: Cartera de un cliente específico al corte de una fecha
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cliente, fechafinal]
+              properties:
+                cliente:
+                  type: string
+                  description: Código del cliente en Millenium Enterprise
+                  example: "900054835"
+                fechafinal:
+                  type: string
+                  format: date
+                  description: Fecha de corte
+                  example: "2026-04-30"
+            example:
+              cliente: "900054835"
+              fechafinal: "2026-04-30"
+      responses:
+        '200':
+          description: Cartera del cliente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DebitList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/debit:
+    post:
+      tags: [Cartera]
+      summary: Listar toda la cartera (sin filtro de fecha)
+      description: Retorna todos los documentos de cartera pendientes calculados a la fecha actual del servidor.
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            example: {}
+      responses:
+        '200':
+          description: Todos los documentos de cartera activos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DebitList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── FACTURAS ──────────────────────────────────────────────────────────────
+
+  /crm/all/invoice:
+    post:
+      tags: [Facturas]
+      summary: Listar facturas por rango de fechas
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fechainicial, fechafinal]
+              properties:
+                fechainicial:
+                  type: string
+                  format: date
+                  example: "2026-04-01"
+                fechafinal:
+                  type: string
+                  format: date
+                  example: "2026-04-30"
+            example:
+              fechainicial: "2026-04-01"
+              fechafinal: "2026-04-30"
+      responses:
+        '200':
+          description: Lista de facturas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/one/invoice:
+    post:
+      tags: [Facturas]
+      summary: Obtener una factura por tipo y número
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tipodoc, numero]
+              properties:
+                tipodoc:
+                  type: string
+                  example: "FV"
+                numero:
+                  type: string
+                  example: "9876"
+            example:
+              tipodoc: "FV"
+              numero: "9876"
+      responses:
+        '200':
+          description: Datos de la factura
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/all/factura:
+    post:
+      tags: [Facturas]
+      summary: Listar todas las facturas (sin filtro de fecha)
+      description: |
+        Variante que retorna todas las facturas disponibles sin filtro de rango.
+        Usar con precaución en empresas con alto volumen de documentos.
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+            example: {}
+      responses:
+        '200':
+          description: Todas las facturas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── PRESUPUESTO ───────────────────────────────────────────────────────────
+
+  /crm/all/salesbudget:
+    post:
+      tags: [Presupuesto]
+      summary: Listar presupuestos por rango de fechas
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fechainicial, fechafinal]
+              properties:
+                fechainicial:
+                  type: string
+                  format: date
+                  example: "2026-01-01"
+                fechafinal:
+                  type: string
+                  format: date
+                  example: "2026-04-30"
+            example:
+              fechainicial: "2026-01-01"
+              fechafinal: "2026-04-30"
+      responses:
+        '200':
+          description: Lista de presupuestos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesbudgetList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/one/salesbudget:
+    post:
+      tags: [Presupuesto]
+      summary: Presupuesto de un vendedor para un año/mes específico
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [anno, mes]
+              properties:
+                anno:
+                  type: integer
+                  description: Año (4 dígitos)
+                  example: 2026
+                mes:
+                  type: integer
+                  description: Mes (1-12)
+                  example: 4
+            example:
+              anno: 2026
+              mes: 4
+      responses:
+        '200':
+          description: Presupuesto del mes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesbudgetList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/salesbudget:
+    post:
+      tags: [Presupuesto]
+      summary: Listar todos los presupuestos de venta (sin filtro de fecha)
+      description: Retorna todos los presupuestos de venta registrados, agrupados por año, mes y vendedor.
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            example: {}
+      responses:
+        '200':
+          description: Lista completa de presupuestos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesbudgetList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── COTIZACIONES ──────────────────────────────────────────────────────────
+
+  /crm/all/quote:
+    post:
+      tags: [Cotizaciones]
+      summary: Listar cotizaciones por rango de fechas
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fechainicial, fechafinal]
+              properties:
+                fechainicial:
+                  type: string
+                  format: date
+                  example: "2026-04-01"
+                fechafinal:
+                  type: string
+                  format: date
+                  example: "2026-04-30"
+            example:
+              fechainicial: "2026-04-01"
+              fechafinal: "2026-04-30"
+      responses:
+        '200':
+          description: Lista de cotizaciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/quote:
+    post:
+      tags: [Cotizaciones]
+      summary: Listar todas las cotizaciones (sin filtro de fecha)
+      description: Retorna todas las cotizaciones registradas en el ERP, ordenadas por tipo de documento y número.
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            example: {}
+      responses:
+        '200':
+          description: Lista completa de cotizaciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/one/quote:
+    post:
+      tags: [Cotizaciones]
+      summary: Obtener una cotización por tipo y número
+      security:
+        - TokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tipodoc, numero]
+              properties:
+                tipodoc:
+                  type: string
+                  example: "CT"
+                numero:
+                  type: string
+                  example: "555"
+            example:
+              tipodoc: "CT"
+              numero: "555"
+      responses:
+        '200':
+          description: Datos de la cotización
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteList'
+        '400':
+          description: Error en la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── HEALTH ────────────────────────────────────────────────────────────────
+
+  /crm/customer/health:
+    get:
+      tags: [Observabilidad]
+      summary: Estado del servicio customer
+      security:
+        - HealthBearer: []
+      responses:
+        '200':
+          description: Estado del pool y circuit breaker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/product/health:
+    get:
+      tags: [Observabilidad]
+      summary: Estado del servicio product
+      security:
+        - HealthBearer: []
+      responses:
+        '200':
+          description: Estado del pool y circuit breaker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/order/health:
+    get:
+      tags: [Observabilidad]
+      summary: Estado del servicio order
+      security:
+        - HealthBearer: []
+      responses:
+        '200':
+          description: Estado del pool y circuit breaker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/debit/health:
+    get:
+      tags: [Observabilidad]
+      summary: Estado del servicio debit
+      security:
+        - HealthBearer: []
+      responses:
+        '200':
+          description: Estado del pool y circuit breaker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/invoice/health:
+    get:
+      tags: [Observabilidad]
+      summary: Estado del servicio invoice
+      security:
+        - HealthBearer: []
+      responses:
+        '200':
+          description: Estado del pool y circuit breaker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/quote/health:
+    get:
+      tags: [Observabilidad]
+      summary: Estado del servicio quote
+      security:
+        - HealthBearer: []
+      responses:
+        '200':
+          description: Estado del pool y circuit breaker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /crm/salesbudget/health:
+    get:
+      tags: [Observabilidad]
+      summary: Estado del servicio salesbudget
+      security:
+        - HealthBearer: []
+      responses:
+        '200':
+          description: Estado del pool y circuit breaker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

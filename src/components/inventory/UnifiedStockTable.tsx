@@ -1,0 +1,172 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Search, Database, RefreshCw, AlertCircle } from 'lucide-react';
+
+interface Product {
+  db_source: string;
+  item_id: number;
+  sku: string;
+  barcode: string;
+  description: string;
+  system_stock: number;
+  physical_stock: number;
+  last_sync_at: string;
+}
+
+export const UnifiedStockTable = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterSource, setFilterSource] = useState<'all' | '01' | '02'>('all');
+
+  useEffect(() => {
+    fetchProducts();
+
+    // Suscripción en tiempo real
+    const channel = supabase
+      .channel('inventory_master_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_master' }, () => {
+        fetchProducts();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    let query = supabase.from('inventory_master').select('*').order('description');
+    
+    if (filterSource !== 'all') {
+      query = query.eq('db_source', filterSource);
+    }
+
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching products:', error);
+    } else {
+      setProducts(data || []);
+    }
+    setLoading(false);
+  };
+
+  const filteredProducts = products.filter(p => 
+    p.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.sku?.includes(searchTerm) ||
+    p.barcode?.includes(searchTerm)
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por descripción, SKU o código..."
+            className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-white"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setFilterSource('all')}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${filterSource === 'all' ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+          >
+            Todos
+          </button>
+          <button 
+            onClick={() => setFilterSource('01')}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${filterSource === '01' ? 'bg-indigo-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+          >
+            <Database className="w-3 h-3" /> Interna (01)
+          </button>
+          <button 
+            onClick={() => setFilterSource('02')}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${filterSource === '02' ? 'bg-emerald-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+          >
+            <Database className="w-3 h-3" /> Fiscal (02)
+          </button>
+          
+          <button 
+            onClick={fetchProducts}
+            className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-all ml-2"
+          >
+            <RefreshCw className={`w-4 h-4 text-gray-400 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden backdrop-blur-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-white/5 text-gray-400 border-b border-white/10">
+              <tr>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider">Origen</th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider">Producto</th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider">SKU / Barra</th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider text-right">Stock Sistema</th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider text-right">Stock Físico</th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider">Estado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {loading && products.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
+                    Cargando inventario...
+                  </td>
+                </tr>
+              ) : filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    No se encontraron productos coincidentes.
+                  </td>
+                </tr>
+              ) : (
+                filteredProducts.map((p) => (
+                  <tr key={`${p.db_source}-${p.item_id}`} className="hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold ${p.db_source === '01' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                        {p.db_source === '01' ? 'Interna' : 'Fiscal'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-medium text-white">{p.description}</td>
+                    <td className="px-6 py-4 text-gray-400">
+                      <div className="flex flex-col">
+                        <span>{p.sku}</span>
+                        <span className="text-[10px] opacity-60">{p.barcode || 'Sin barra'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right font-mono text-gray-300">{p.system_stock}</td>
+                    <td className="px-6 py-4 text-right font-mono text-gray-300">
+                       {p.physical_stock !== null ? p.physical_stock : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                       {p.system_stock !== p.physical_stock && p.physical_stock !== null ? (
+                         <div className="flex items-center gap-1 text-amber-500" title="Diferencia de inventario">
+                           <AlertCircle className="w-4 h-4" />
+                           <span className="text-[10px] font-bold">DESCUADRE</span>
+                         </div>
+                       ) : (
+                         <span className="text-gray-600 text-[10px]">Sincronizado</span>
+                       )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
