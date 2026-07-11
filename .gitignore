@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -49,3 +50,11 @@ BK Paisas/
 
 # Test/temp scripts
 scripts/prueba.txt
+
+# --- Depuración 2026-07-11 ---
+# Código retirado y claves (nunca versionar)
+_archive/
+id_tunnel*
+# Material de trabajo no-código
+Chat de WhatsApp*/
+*.opus

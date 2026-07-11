@@ -1,8 +1,12 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pedidos Paisas — Fast Order
+
+Sistema de pedidos, despacho e inventario para el Granero Los Paisas de Palmira, integrado con el ERP Millenium Enterprise vía API Flex CRM.
+
+> 📖 **Documentación completa: empieza por [`CLAUDE.md`](./CLAUDE.md)** (documento enrutador hacia `docs/` y `.spec/`).
 
 ## Getting Started
 
-First, run the development server:
+Copia `.env.example` a `.env.local` y completa las credenciales. Luego corre el servidor de desarrollo:
 
 ```bash
 npm run dev

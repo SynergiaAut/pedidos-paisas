@@ -1,52 +1,24 @@
 import { NextResponse } from 'next/server';
+import { healthAll } from '@/lib/flex-crm';
 
-const BASE_URL = process.env.FLEX_CRM_URL || 'https://me.services.ibla.co';
-const CRM_EMAIL = process.env.FLEX_CRM_EMAIL || '';
-const CRM_CLAVE = process.env.FLEX_CRM_CLAVE || '';
-
+/**
+ * GET /api/milenium/health
+ * Verifica login contra la API Flex CRM para AMBAS bases (01 GRANES, 02 FISCAL).
+ * 200 = ambas OK - 207 = una OK - 503 = ninguna responde.
+ */
 export async function GET() {
-    const startTime = Date.now();
-    
-    try {
-        console.log("[FastOrder/Health] Verificando conexión con Flex CRM (Millenium)...");
-        
-        // El healthcheck más real es hacer un login y verificar que responde
-        const res = await fetch(`${BASE_URL}/crm/empresa/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ correo: CRM_EMAIL, clave: CRM_CLAVE }),
-        });
+    console.log('[FastOrder/Health] Verificando conexion Flex CRM en ambas bases...');
+    const results = await healthAll();
 
-        const data = await res.json();
-        const elapsed = Date.now() - startTime;
+    const okCount = results.filter((r) => r.ok).length;
+    const status = okCount === 2 ? 200 : okCount === 1 ? 207 : 503;
 
-        if (!res.ok || !data.ok) {
-            return NextResponse.json(
-                { status: 'error', service: 'flex-crm', message: 'Login fallido', details: data.message },
-                { status: 503 }
-            );
-        }
-
-        // Decodificar expiración del token
-        const payload = JSON.parse(Buffer.from(data.token.split('.')[1], 'base64').toString());
-        const expiresAt = new Date(payload.exp * 1000).toISOString();
-
-        console.log(`✅ [FastOrder/Health] Flex CRM OK en ${elapsed}ms`);
-        
-        return NextResponse.json({
-            status: 'ok',
+    return NextResponse.json(
+        {
+            status: okCount === 2 ? 'ok' : okCount === 1 ? 'degraded' : 'error',
             service: 'flex-crm',
-            message: 'Conexión con Millenium Enterprise verificada correctamente',
-            latency_ms: elapsed,
-            empresa: data.usuario?.razon_social,
-            nit: data.usuario?.nit,
-            token_expires_at: expiresAt,
-        });
-        
-    } catch (error: any) {
-        return NextResponse.json(
-            { status: 'error', service: 'flex-crm', message: error.message },
-            { status: 503 }
-        );
-    }
+            databases: results,
+        },
+        { status }
+    );
 }
