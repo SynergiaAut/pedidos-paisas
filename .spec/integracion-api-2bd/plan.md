@@ -54,3 +54,15 @@ Script npm: `"test": "node --experimental-strip-types --test tests/"`.
 
 ## Dependencias
 `SYNC_SECRET` en `.env.local` y `.env.example`. Migración 009 aplicada en Supabase antes del primer sync.
+
+## 6. Addendum (2026-07-13): sync automático cada 15 min (implementa TASK-009)
+
+**Origen:** hallazgo de Johnathan — si un conteo físico ocurre en horario de venta activa, `system_stock` puede estar desactualizado (última sync manual) y el sistema reporta como "pérdida" unidades que en realidad se vendieron legítimamente entre el último sync y el conteo. Sync más frecuente acota (no elimina) esa ventana de desactualización.
+
+- Refactorizar `src/app/api/milenium/sync-inventario/route.ts`: extraer la lógica de sync a una función reutilizable `runInventorySync(db: DbSource | 'all')` en `src/lib/flex-crm.ts` o un nuevo `src/lib/inventory-sync.ts`, para que tanto el route handler (llamado manualmente/por Antigravity) como el cron interno la reutilicen sin round-trip HTTP.
+- Usar `instrumentation.ts` (hook nativo de Next.js 16, corre una vez al levantar el servidor — sin contenedor ni proceso adicional, coherente con el despliegue actual de un solo contenedor Docker) + `node-cron` para programar `runInventorySync('all')` cada 15 minutos.
+- La latencia conocida (12-34s por sync completo de BD1) es aceptable dentro de la ventana de 15 min — no bloquea el arranque del servidor ni la UI.
+- Loggear cada corrida (éxito/error, duración, cantidad sincronizada) — puede ser simple `console.log` estructurado por ahora; monitoreo más robusto queda para cuando haya más de un ambiente.
+- Sin cambios de UI: el botón "Sincronizar" manual sigue existiendo para forzar un refresh inmediato.
+
+Ver tareas concretas en `tasks.md` Bloque F (TASK-014 a TASK-016).

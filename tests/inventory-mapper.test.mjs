@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isService, skuToItemId, mapToInventoryRow } from '../src/lib/inventory-mapper.ts';
+import { isService, skuToItemId, mapToInventoryRow, repairMojibake } from '../src/lib/inventory-mapper.ts';
 
 const NOW = new Date('2026-07-11T20:00:00Z');
 
@@ -93,4 +93,12 @@ test('mapToInventoryRow: payload malformado no explota', () => {
     assert.equal(row.cost_avg, 0);
     assert.equal(row.is_service, true);
     assert.deepEqual(row.stock_by_warehouse, []);
+});
+
+test('repairMojibake: repara caracteres corruptos típicos', () => {
+    assert.equal(repairMojibake('ALIÃ\'OS'), 'ALIÑOS');
+    assert.equal(repairMojibake('BOCADILLO VELEÃ\'O'), 'BOCADILLO VELEÑO');
+    assert.equal(repairMojibake('APERITIVO GUARAQUEÃ\'O CANECA'), 'APERITIVO GUARAQUEÑO CANECA');
+    assert.equal(repairMojibake('Ã¡Ã©Ã­Ã³Ãº Â¿Â¡'), 'áéíóú ¿¡');
+    assert.equal(repairMojibake('PRODUCTO NORMAL'), 'PRODUCTO NORMAL'); // No daña los correctos
 });

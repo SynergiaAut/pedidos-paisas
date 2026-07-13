@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* La app es dark: esto hace que los controles NATIVOS del navegador
+   (desplegables de <select>, scrollbars, date pickers) se rendericen
+   en oscuro y no blanco-sobre-blanco. */
+html {
+  color-scheme: dark;
+}
+
 @layer utilities {
   .animated-gradient-bg {
     background: conic-gradient(from 0deg at 50% 50%, #0f172a 0%, #1e1b4b 25%, #000000 50%, #1e1b4b 75%, #0f172a 100%);

@@ -220,10 +220,7 @@ class FlexCrmClient {
         });
 
         const buffer = await res.arrayBuffer();
-        let text = new TextDecoder('utf-8').decode(buffer);
-        if (text.includes('�')) {
-            text = new TextDecoder('windows-1252').decode(buffer);
-        }
+        const text = new TextDecoder('utf-8').decode(buffer);
 
         let data: { ok: boolean; message?: string } & T;
         try {

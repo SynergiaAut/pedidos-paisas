@@ -37,3 +37,4 @@ Supabase Auth + `middleware.ts` (SSR cookies). Roles en `profiles`: Admin, Cajer
 - [ ] RLS activo en tablas nuevas
 - [ ] Ninguna query/policy `to public with check (true)` nueva
 - [ ] `.env.example` actualizado si se agregó variable
+- [ ] Cambiar la variable de entorno `APP_BASE_URL` a la IP/hostname LAN real del servidor (ej. http://192.168.1.50:3000) en el `.env.local` de producción (nunca usar localhost).

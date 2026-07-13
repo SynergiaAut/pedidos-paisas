@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { TopBar } from "@/components/TopBar";
+import { ConditionalTopBar } from "@/components/ConditionalTopBar";
 import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -21,7 +21,7 @@ export default function RootLayout({
     <html lang="es" className="dark">
       <body className={cn(inter.className, "min-h-screen bg-background font-sans antialiased")}>
         <div className="flex-col md:flex">
-          <TopBar />
+          <ConditionalTopBar />
           <main className="flex-1 space-y-4 p-8 pt-6">
             {children}
           </main>

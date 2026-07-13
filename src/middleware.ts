@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { PUBLIC_PATH_PREFIXES } from './lib/public-routes'
 
 export async function middleware(request: NextRequest) {
     let response = NextResponse.next({
@@ -33,8 +34,16 @@ export async function middleware(request: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Protected routes pattern
-    if (!user && (request.nextUrl.pathname.startsWith('/pedidos') || request.nextUrl.pathname.startsWith('/nuevo-pedido'))) {
+    // Rutas públicas: login/signup, registro QR de clientes, activación de licencia.
+    // /api queda fuera del redirect: cada route handler maneja su propia auth
+    // (ej. sync-inventario usa x-sync-secret).
+    const pathname = request.nextUrl.pathname
+    const isPublic =
+        pathname === '/' ||
+        PUBLIC_PATH_PREFIXES.some((p) => pathname.startsWith(p)) ||
+        pathname.startsWith('/api')
+
+    if (!user && !isPublic) {
         return NextResponse.redirect(new URL('/login', request.url))
     }
 

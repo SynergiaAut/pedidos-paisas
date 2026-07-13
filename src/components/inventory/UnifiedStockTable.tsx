@@ -2,24 +2,39 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Database, RefreshCw, AlertCircle } from 'lucide-react';
+import { Search, Database, RefreshCw, AlertCircle, Calendar } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface Product {
   db_source: string;
-  item_id: number;
+  item_id: number | null;
   sku: string;
-  barcode: string;
+  barcode: string | null;
   description: string;
   system_stock: number;
-  physical_stock: number;
-  last_sync_at: string;
+  physical_stock: number | null;
+  last_counted_at: string | null;
+  is_service?: boolean;
+  classification?: string | null;
+  brand?: string | null;
+  unit?: string | null;
+  cost_avg?: number | null;
+  last_sync_at: string | null;
 }
+
+const ROW_OPTIONS = [100, 250, 500, 1000] as const;
+
+const formatCOP = (n: number | null | undefined) =>
+  n && n > 0 ? `$${Math.round(n).toLocaleString('es-CO')}` : '—';
 
 export const UnifiedStockTable = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSource, setFilterSource] = useState<'all' | '01' | '02'>('all');
+  const [showServices, setShowServices] = useState(false);
+  const [rowLimit, setRowLimit] = useState<number | 'all'>(100);
 
   useEffect(() => {
     fetchProducts();
@@ -35,31 +50,50 @@ export const UnifiedStockTable = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterSource, showServices]);
 
   const fetchProducts = async () => {
     setLoading(true);
-    let query = supabase.from('inventory_master').select('*').order('description');
-    
-    if (filterSource !== 'all') {
-      query = query.eq('db_source', filterSource);
+    // PostgREST limita a 1000 filas por request: paginamos el catálogo completo.
+    const PAGE = 1000;
+    const all: Product[] = [];
+    let from = 0;
+
+    while (true) {
+      let query = supabase
+        .from('inventory_master')
+        .select('*')
+        .order('last_counted_at', { ascending: false, nullsFirst: false })
+        .order('description')
+        .range(from, from + PAGE - 1);
+
+      if (filterSource !== 'all') query = query.eq('db_source', filterSource);
+      if (!showServices) query = query.eq('is_service', false);
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error fetching products:', error);
+        break;
+      }
+      all.push(...(data || []));
+      if (!data || data.length < PAGE) break;
+      from += PAGE;
     }
 
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error('Error fetching products:', error);
-    } else {
-      setProducts(data || []);
-    }
+    setProducts(all);
     setLoading(false);
   };
 
-  const filteredProducts = products.filter(p => 
+  const filteredProducts = products.filter(p =>
     p.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.sku?.includes(searchTerm) ||
-    p.barcode?.includes(searchTerm)
+    p.barcode?.includes(searchTerm) ||
+    p.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.classification?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const visibleProducts = rowLimit === 'all' ? filteredProducts : filteredProducts.slice(0, rowLimit);
 
   return (
     <div className="space-y-4">
@@ -94,10 +128,29 @@ export const UnifiedStockTable = () => {
           >
             <Database className="w-3 h-3" /> Fiscal (02)
           </button>
-          
-          <button 
+          <button
+            onClick={() => setShowServices(!showServices)}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${showServices ? 'bg-amber-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+            title="Incluir fletes/servicios sin bodega"
+          >
+            Servicios
+          </button>
+
+          <select
+            value={rowLimit === 'all' ? 'all' : String(rowLimit)}
+            onChange={(e) => setRowLimit(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            className="bg-white/5 border border-white/10 text-gray-300 text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ml-2"
+            title="Filas a mostrar"
+          >
+            {ROW_OPTIONS.map((n) => (
+              <option key={n} value={n} className="bg-gray-900">{n} filas</option>
+            ))}
+            <option value="all" className="bg-gray-900">Todas</option>
+          </select>
+
+          <button
             onClick={fetchProducts}
-            className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-all ml-2"
+            className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-all"
           >
             <RefreshCw className={`w-4 h-4 text-gray-400 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -112,6 +165,7 @@ export const UnifiedStockTable = () => {
                 <th className="px-6 py-4 font-medium uppercase tracking-wider">Origen</th>
                 <th className="px-6 py-4 font-medium uppercase tracking-wider">Producto</th>
                 <th className="px-6 py-4 font-medium uppercase tracking-wider">SKU / Barra</th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider text-right">Costo Prom.</th>
                 <th className="px-6 py-4 font-medium uppercase tracking-wider text-right">Stock Sistema</th>
                 <th className="px-6 py-4 font-medium uppercase tracking-wider text-right">Stock Físico</th>
                 <th className="px-6 py-4 font-medium uppercase tracking-wider">Estado</th>
@@ -120,32 +174,48 @@ export const UnifiedStockTable = () => {
             <tbody className="divide-y divide-white/5">
               {loading && products.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                     Cargando inventario...
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     No se encontraron productos coincidentes.
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((p) => (
-                  <tr key={`${p.db_source}-${p.item_id}`} className="hover:bg-white/5 transition-colors">
+                visibleProducts.map((p) => (
+                  <tr key={`${p.db_source}-${p.sku}`} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold ${p.db_source === '01' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                         {p.db_source === '01' ? 'Interna' : 'Fiscal'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-medium text-white">{p.description}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-white">{p.description}</span>
+                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-gray-500">
+                            {[p.classification, p.brand !== 'SIN MARCA' ? p.brand : null].filter(Boolean).join(' · ') || '—'}
+                          </span>
+                          {p.last_counted_at && (
+                            <span className="bg-emerald-500/20 text-emerald-400 text-[9px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
+                              <Calendar className="w-2.5 h-2.5" />
+                              Contado {formatDistanceToNow(new Date(p.last_counted_at), { addSuffix: true, locale: es })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-gray-400">
                       <div className="flex flex-col">
                         <span>{p.sku}</span>
                         <span className="text-[10px] opacity-60">{p.barcode || 'Sin barra'}</span>
                       </div>
                     </td>
+                    <td className="px-6 py-4 text-right font-mono text-gray-400">{formatCOP(p.cost_avg)}</td>
                     <td className="px-6 py-4 text-right font-mono text-gray-300">{p.system_stock}</td>
                     <td className="px-6 py-4 text-right font-mono text-gray-300">
                        {p.physical_stock !== null ? p.physical_stock : '-'}
@@ -165,6 +235,19 @@ export const UnifiedStockTable = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pie: conteo de filas */}
+        <div className="flex items-center justify-between px-6 py-3 border-t border-white/10 text-xs text-gray-500">
+          <span>
+            Mostrando {visibleProducts.length.toLocaleString('es-CO')} de {filteredProducts.length.toLocaleString('es-CO')} productos
+            {searchTerm && ` (filtro: "${searchTerm}")`}
+          </span>
+          {rowLimit !== 'all' && filteredProducts.length > (rowLimit as number) && (
+            <button onClick={() => setRowLimit('all')} className="text-blue-400 hover:text-blue-300 transition-colors">
+              Ver todas →
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -47,6 +47,58 @@ export function skuToItemId(sku: string): number | null {
     return Number.isSafeInteger(n) ? n : null;
 }
 
+export function repairMojibake(str: string | null | undefined): string {
+    if (!str) return '';
+    
+    // Verificamos si tiene el patrón general de mojibake (contiene Ã o Â)
+    if (!str.includes('Ã') && !str.includes('Â')) {
+        return str;
+    }
+
+    let result = str;
+    
+    // Mapeo de reemplazos típicos de mojibake de UTF-8 interpretado como Windows-1252 / ISO-8859-1
+    const replacements: [RegExp, string][] = [
+        // Ñ / ñ
+        [/Ã'/g, 'Ñ'],
+        [/Ã\u0091/g, 'Ñ'],
+        [/Ã‘/g, 'Ñ'],
+        [/Ã±/g, 'ñ'],
+        
+        // Vocales minúsculas con tilde
+        [/Ã¡/g, 'á'],
+        [/Ã©/g, 'é'],
+        [/Ã­/g, 'í'],
+        [/Ã\u00ad/g, 'í'],
+        [/Ã³/g, 'ó'],
+        [/Ãº/g, 'ú'],
+
+        // Vocales mayúsculas con tilde
+        [/Ã\u0081/g, 'Á'],
+        [/Ã\u0089/g, 'É'],
+        [/Ã\u008d/g, 'Í'],
+        [/Ã\u0093/g, 'Ó'],
+        [/Ã\u009a/g, 'Ú'],
+        [/Ã/g, 'Á'],
+        [/Ã‰/g, 'É'],
+        [/Ã/g, 'Í'],
+        [/Ã“/g, 'Ó'],
+        [/Ãš/g, 'Ú'],
+
+        // Otros
+        [/Â¿/g, '¿'],
+        [/Â¡/g, '¡'],
+        [/Ã¼/g, 'ü'],
+        [/Ãœ/g, 'Ü']
+    ];
+
+    for (const [pattern, replacement] of replacements) {
+        result = result.replace(pattern, replacement);
+    }
+
+    return result;
+}
+
 export function mapToInventoryRow(p: CrmProductTagged, now: Date = new Date()): InventoryRow {
     const barcode = (p.referencia ?? '').trim();
     return {
@@ -54,7 +106,7 @@ export function mapToInventoryRow(p: CrmProductTagged, now: Date = new Date()): 
         item_id: skuToItemId(p.sku),
         sku: p.sku,
         barcode: barcode.length > 0 ? barcode : null,
-        description: (p.descripcion ?? '').trim(),
+        description: repairMojibake((p.descripcion ?? '').trim()),
         system_stock: p.existencia_total ?? 0,
         cost_avg: p.costo_promedio ?? 0,
         classification: p.clasificacion || null,
