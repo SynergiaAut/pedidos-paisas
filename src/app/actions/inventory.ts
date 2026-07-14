@@ -23,6 +23,8 @@ export interface InventoryStats {
     pendingSessions: number;    // sesiones de conteo sin completar
     lastSyncAt: string | null;  // ISO
     pendingSession: PendingSessionInfo | null;
+    stockUnits: number;                      // suma de system_stock (ítems reales, excluye servicios)
+    stockUnitsByDb: Record<string, number>;  // desglose por base: { '01': n, '02': n }
 }
 
 export async function getInventoryStats(): Promise<InventoryStats | { error: string }> {
@@ -31,7 +33,7 @@ export async function getInventoryStats(): Promise<InventoryStats | { error: str
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: 'No autenticado' };
 
-    const [products, services, sessions, lastSync, counted, pendingSessionData] = await Promise.all([
+    const [products, services, sessions, lastSync, counted, pendingSessionData, stockUnitsData] = await Promise.all([
         supabase.from('inventory_master').select('id', { count: 'exact', head: true }).eq('is_service', false),
         supabase.from('inventory_master').select('id', { count: 'exact', head: true }).eq('is_service', true),
         supabase.from('inventory_sessions').select('id', { count: 'exact', head: true }).neq('status', 'completed'),
@@ -53,8 +55,17 @@ export async function getInventoryStats(): Promise<InventoryStats | { error: str
             .select('id, name, mode, link_token')
             .neq('status', 'completed')
             .order('started_at', { ascending: true })
-            .limit(1)
+            .limit(1),
+        supabase.rpc('get_stock_units')
     ]);
+
+    const stockUnitsByDb: Record<string, number> = {};
+    let stockUnits = 0;
+    for (const row of (stockUnitsData.data ?? []) as { db_source: string; units: number }[]) {
+        const u = Number(row.units) || 0;
+        stockUnitsByDb[row.db_source] = u;
+        stockUnits += u;
+    }
 
     const discrepancies = (counted.data ?? []).filter(
         (r) => Number(r.physical_stock) !== Number(r.system_stock)
@@ -75,7 +86,9 @@ export async function getInventoryStats(): Promise<InventoryStats | { error: str
         discrepancies,
         pendingSessions: sessions.count ?? 0,
         lastSyncAt: lastSync.data?.[0]?.last_sync_at ?? null,
-        pendingSession
+        pendingSession,
+        stockUnits,
+        stockUnitsByDb
     };
 }
 
