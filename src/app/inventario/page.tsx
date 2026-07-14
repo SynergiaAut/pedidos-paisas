@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { UnifiedStockTable } from '@/components/inventory/UnifiedStockTable';
 import { CyclicCountWizard } from '@/components/inventory/CyclicCountWizard';
 import { InventoryAnalysisTab } from '@/components/inventory/InventoryAnalysisTab';
+import { BehaviorTab } from '@/components/inventory/BehaviorTab';
 import { 
   Package, 
   AlertTriangle, 
@@ -56,7 +57,7 @@ function timeAgo(iso: string | null): string {
 }
 
 export default function InventarioPage() {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'analysis'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'analysis' | 'behavior'>('catalog');
   const [showWizard, setShowWizard] = useState(false);
   const [selectedPendingSession, setSelectedPendingSession] = useState<any | null>(null);
   const [stats, setStats] = useState<InventoryStats | null>(null);
@@ -234,6 +235,16 @@ export default function InventarioPage() {
         >
           Análisis y Consolidados
         </button>
+        <button
+          onClick={() => setActiveTab('behavior')}
+          className={`px-4 py-2 text-sm font-semibold transition-all border-b-2 ${
+            activeTab === 'behavior'
+              ? 'border-emerald-500 text-emerald-400 font-bold'
+              : 'border-transparent text-gray-400 hover:text-gray-200'
+          }`}
+        >
+          Comportamiento
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -247,8 +258,10 @@ export default function InventarioPage() {
             
             <UnifiedStockTable />
           </div>
-        ) : (
+        ) : activeTab === 'analysis' ? (
           <InventoryAnalysisTab />
+        ) : (
+          <BehaviorTab />
         )}
       </div>
     </div>
