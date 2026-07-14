@@ -56,11 +56,15 @@ export function BehaviorTab() {
 
     // Estados para snapshots intradía (Fase S5)
     const [intradayDate, setIntradayDate] = useState<string>(() => {
-        // Inicializar con la fecha de hoy en huso horario local (formato YYYY-MM-DD)
         const d = new Date();
-        const offset = d.getTimezoneOffset();
-        const localDate = new Date(d.getTime() - (offset * 60 * 1000));
-        return localDate.toISOString().split('T')[0];
+        const colombiaOffset = -5 * 60; // en minutos
+        const utcTime = d.getTime() + (d.getTimezoneOffset() * 60 * 1000);
+        const colombiaTime = new Date(utcTime + (colombiaOffset * 60 * 1000));
+        
+        const year = colombiaTime.getFullYear();
+        const month = String(colombiaTime.getMonth() + 1).padStart(2, '0');
+        const day = String(colombiaTime.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     });
     const [intradayData, setIntradayData] = useState<IntradayPoint[]>([]);
     const [loadingIntraday, setLoadingIntraday] = useState<boolean>(true);

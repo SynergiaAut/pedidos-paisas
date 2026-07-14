@@ -363,29 +363,47 @@ class FlexCrmClient {
      * este fallback deja de activarse solo.
      */
     async post<T>(path: string, body: object = {}, timeoutMs?: number): Promise<T> {
-        const token = await this.getToken();
-        const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined;
-        const res = await fetch(`${BASE_URL}${path}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', token },
-            body: JSON.stringify(body),
-            signal,
-        });
+        let attempts = 0;
+        const maxAttempts = 3;
+        let lastError: any = null;
+        
+        while (attempts < maxAttempts) {
+            attempts++;
+            const token = await this.getToken();
+            const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined;
+            try {
+                const res = await fetch(`${BASE_URL}${path}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', token },
+                    body: JSON.stringify(body),
+                    signal,
+                });
 
-        const buffer = await res.arrayBuffer();
-        const text = new TextDecoder('utf-8').decode(buffer);
+                const buffer = await res.arrayBuffer();
+                const text = new TextDecoder('utf-8').decode(buffer);
 
-        let data: { ok: boolean; message?: string } & T;
-        try {
-            data = JSON.parse(text);
-        } catch {
-            throw new Error(`[FlexCRM:${this.db}] Respuesta no-JSON en ${path} (HTTP ${res.status})`);
+                let data: { ok: boolean; message?: string } & T;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    throw new Error(`[FlexCRM:${this.db}] Respuesta no-JSON en ${path} (HTTP ${res.status})`);
+                }
+
+                if (!res.ok || !data.ok) {
+                    throw new Error(`[FlexCRM:${this.db}] Error en ${path}: ${data.message || res.statusText}`);
+                }
+                return data;
+            } catch (err: any) {
+                lastError = err;
+                console.warn(`[FlexCRM:${this.db}] Intento ${attempts}/${maxAttempts} falló en ${path}. Error: ${err.message}`);
+                if (attempts < maxAttempts) {
+                    // Backoff exponencial: 1s, 2s
+                    const delay = Math.pow(2, attempts - 1) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
         }
-
-        if (!res.ok || !data.ok) {
-            throw new Error(`[FlexCRM:${this.db}] Error en ${path}: ${data.message || res.statusText}`);
-        }
-        return data;
+        throw lastError || new Error(`[FlexCRM:${this.db}] Fallaron todos los intentos de POST en ${path}`);
     }
 
     /** Login + latencia - para el health check. */
@@ -428,7 +446,7 @@ class FlexCrmClient {
     // ---------- Productos ----------
     // La API envuelve cada elemento en { producto: {...} } - desempaquetamos y normalizamos.
     async getAllProducts(): Promise<CrmProduct[]> {
-        const data = await this.post<{ products: { producto: CrmProductRaw }[] }>('/crm/all/product');
+        const data = await this.post<{ products: { producto: CrmProductRaw }[] }>('/crm/all/product', {}, 120000);
         return (data.products ?? []).map((p) => normalizeProduct(p.producto));
     }
 

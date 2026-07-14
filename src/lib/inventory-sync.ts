@@ -58,7 +58,23 @@ export async function runInventorySync(dbParam: string = 'all'): Promise<SyncSum
             }
             console.log(`[SyncInventario:${db}] OK — ${result.upserted} filas (${result.services} servicios)`);
         } catch (error: unknown) {
-            result.error = error instanceof Error ? error.message : String(error);
+            let lastSuccessMsg = '';
+            try {
+                const { data } = await supabase
+                    .from('inventory_master')
+                    .select('last_sync_at')
+                    .eq('db_source', db)
+                    .order('last_sync_at', { ascending: false })
+                    .limit(1);
+                
+                if (data && data[0]?.last_sync_at) {
+                    const date = new Date(data[0].last_sync_at);
+                    lastSuccessMsg = ` (Último sync OK: ${date.toLocaleString('es-CO')})`;
+                }
+            } catch (dbErr) {
+                // silenciar error al leer último sync
+            }
+            result.error = `${error instanceof Error ? error.message : String(error)}${lastSuccessMsg}`;
             console.error(`[SyncInventario:${db}] FALLÓ:`, result.error);
         }
         results.push(result);
