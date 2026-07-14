@@ -65,7 +65,6 @@ export function BehaviorTab() {
     const [intradayData, setIntradayData] = useState<IntradayPoint[]>([]);
     const [loadingIntraday, setLoadingIntraday] = useState<boolean>(true);
     const [intradayError, setIntradayError] = useState<string | null>(null);
-    const [activeIntradayDb, setActiveIntradayDb] = useState<'01' | '02' | 'all'>('all');
     const [intradayViewMode, setIntradayViewMode] = useState<'cumulative' | 'delta'>('cumulative');
 
     const loadIntradayData = async () => {
@@ -231,16 +230,6 @@ export function BehaviorTab() {
                                     onChange={(e) => setIntradayDate(e.target.value)}
                                     className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
                                 />
-                                
-                                <select 
-                                    value={activeIntradayDb}
-                                    onChange={(e) => setActiveIntradayDb(e.target.value as any)}
-                                    className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
-                                >
-                                    <option value="all">General (Consolidado)</option>
-                                    <option value="01">BD1 (Los Paisas)</option>
-                                    <option value="02">BD2 (Paisas Fiscal)</option>
-                                </select>
 
                                 <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
                                     <button 
@@ -288,13 +277,17 @@ export function BehaviorTab() {
                                     {intradayViewMode === 'cumulative' ? (
                                         <AreaChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                                             <defs>
-                                                <linearGradient id="colorIntraday" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor={
-                                                        activeIntradayDb === '01' ? '#10b981' : activeIntradayDb === '02' ? '#3b82f6' : '#a855f7'
-                                                    } stopOpacity={0.2}/>
-                                                    <stop offset="95%" stopColor={
-                                                        activeIntradayDb === '01' ? '#10b981' : activeIntradayDb === '02' ? '#3b82f6' : '#a855f7'
-                                                    } stopOpacity={0}/>
+                                                <linearGradient id="colorIntradayAll" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.15}/>
+                                                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                                                </linearGradient>
+                                                <linearGradient id="colorIntraday01" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                                </linearGradient>
+                                                <linearGradient id="colorIntraday02" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
+                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -302,20 +295,36 @@ export function BehaviorTab() {
                                             <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
                                             <Tooltip 
                                                 contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                                                labelClassName="text-gray-400 text-xs"
-                                                formatter={(value: any) => [formatCOP(Number(value)), 'Venta Acumulada']}
+                                                labelClassName="text-gray-400 text-xs font-bold"
+                                                formatter={(value: any, name: any) => [formatCOP(Number(value)), String(name)]}
+                                            />
+                                            <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
+                                            <Area 
+                                                type="monotone" 
+                                                name="General (Consolidado)"
+                                                dataKey="venta_all"
+                                                stroke="#a855f7"
+                                                strokeWidth={3}
+                                                fillOpacity={1}
+                                                fill="url(#colorIntradayAll)"
                                             />
                                             <Area 
                                                 type="monotone" 
-                                                dataKey={
-                                                    activeIntradayDb === '01' ? 'venta_01' : activeIntradayDb === '02' ? 'venta_02' : 'venta_all'
-                                                } 
-                                                stroke={
-                                                    activeIntradayDb === '01' ? '#10b981' : activeIntradayDb === '02' ? '#3b82f6' : '#a855f7'
-                                                } 
-                                                strokeWidth={2.5} 
-                                                fillOpacity={1} 
-                                                fill="url(#colorIntraday)" 
+                                                name="BD1 (Los Paisas)"
+                                                dataKey="venta_01"
+                                                stroke="#10b981"
+                                                strokeWidth={2}
+                                                fillOpacity={1}
+                                                fill="url(#colorIntraday01)"
+                                            />
+                                            <Area 
+                                                type="monotone" 
+                                                name="BD2 (Paisas Fiscal)"
+                                                dataKey="venta_02"
+                                                stroke="#3b82f6"
+                                                strokeWidth={2}
+                                                fillOpacity={1}
+                                                fill="url(#colorIntraday02)"
                                             />
                                         </AreaChart>
                                     ) : (
@@ -325,19 +334,33 @@ export function BehaviorTab() {
                                             <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
                                             <Tooltip 
                                                 contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                                                labelClassName="text-gray-400 text-xs"
-                                                formatter={(value: any) => [formatCOP(Number(value)), 'Venta Franja']}
+                                                labelClassName="text-gray-400 text-xs font-bold"
+                                                formatter={(value: any, name: any) => [formatCOP(Number(value)), String(name)]}
+                                            />
+                                            <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
+                                            <Line 
+                                                type="monotone" 
+                                                name="General (Consolidado)"
+                                                dataKey="delta_venta_all"
+                                                stroke="#a855f7"
+                                                strokeWidth={2.5}
+                                                dot={true}
                                             />
                                             <Line 
                                                 type="monotone" 
-                                                dataKey={
-                                                    activeIntradayDb === '01' ? 'delta_venta_01' : activeIntradayDb === '02' ? 'delta_venta_02' : 'delta_venta_all'
-                                                } 
-                                                stroke={
-                                                    activeIntradayDb === '01' ? '#10b981' : activeIntradayDb === '02' ? '#3b82f6' : '#a855f7'
-                                                } 
-                                                strokeWidth={2} 
-                                                dot={true} 
+                                                name="BD1 (Los Paisas)"
+                                                dataKey="delta_venta_01"
+                                                stroke="#10b981"
+                                                strokeWidth={1.8}
+                                                dot={true}
+                                            />
+                                            <Line 
+                                                type="monotone" 
+                                                name="BD2 (Paisas Fiscal)"
+                                                dataKey="delta_venta_02"
+                                                stroke="#3b82f6"
+                                                strokeWidth={1.8}
+                                                dot={true}
                                             />
                                         </LineChart>
                                     )}

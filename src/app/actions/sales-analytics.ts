@@ -65,168 +65,156 @@ export async function getProductsBehaviorData(filters: {
 
     const supabase = await createClient();
     const limitDate = new Date(Date.now() - filters.periodDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const targetClassification = filters.classification || 'ALL';
+    const hoyStr = new Date().toISOString().split('T')[0];
 
-    // 1. Consultar todas las líneas de venta en el período
-    let query = supabase
-        .from('sales_lines')
-        .select('*')
-        .gte('fecha', limitDate);
-
-    if (filters.classification && filters.classification !== 'ALL') {
-        query = query.eq('id_clasificacion', filters.classification);
-    }
-
-    const { data: sales, error: salesError } = await query;
-    if (salesError) {
-        return { error: `Error al consultar ventas: ${salesError.message}` };
-    }
-
-    const salesList = sales || [];
-
-    // 2. Consultar el inventario para obtener clasificaciones y dead stock
-    const { data: inventory, error: invError } = await supabase
-        .from('inventory_master')
-        .select('sku, description, system_stock, classification, brand, is_service')
-        .eq('is_service', false);
-
-    if (invError) {
-        return { error: `Error al consultar inventario: ${invError.message}` };
-    }
-
-    const invList = inventory || [];
-
-    // Clasificaciones únicas disponibles
-    const classifications = Array.from(new Set(invList.map(i => i.classification).filter(Boolean))) as string[];
-
-    // 3. Procesar KPIs y rankings en memoria
-    let totalSalesVal = 0;
-    let totalRevenueForMargin = 0;
-    let totalCostoForMargin = 0;
-
-    const productSalesMap: Record<string, { sku: string; descripcion: string; cantidad: number; total: number; totalCosto: number }> = {};
-    const dailySalesMap: Record<string, { total: number; totalCosto: number }> = {};
-    const skusWithSales = new Set<string>();
-
-    for (const sale of salesList) {
-        const totalVal = Number(sale.total) || 0;
-        const totalCostoVal = Number(sale.total_costo) || 0;
-        const sku = String(sale.sku);
-
-        totalSalesVal += totalVal;
-        skusWithSales.add(sku);
-
-        // Excluir SKUs corruptos del cálculo agregado del margen
-        if (!CORRUPT_SKUS.includes(sku)) {
-            totalRevenueForMargin += totalVal;
-            totalCostoForMargin += totalCostoVal;
-        }
-
-        // Agrupación por producto
-        if (!productSalesMap[sku]) {
-            productSalesMap[sku] = {
-                sku,
-                descripcion: sale.descripcion || 'Sin descripción',
-                cantidad: 0,
-                total: 0,
-                totalCosto: 0
-            };
-        }
-        productSalesMap[sku].cantidad += Number(sale.cantidad) || 0;
-        productSalesMap[sku].total += totalVal;
-        productSalesMap[sku].totalCosto += totalCostoVal;
-
-        // Agrupación por fecha para gráfico de tendencia
-        const fecha = String(sale.fecha);
-        if (!dailySalesMap[fecha]) {
-            dailySalesMap[fecha] = { total: 0, totalCosto: 0 };
-        }
-        dailySalesMap[fecha].total += totalVal;
-        dailySalesMap[fecha].totalCosto += totalCostoVal;
-    }
-
-    // Calcular margen agregado general %
-    const avgMarginPct = totalRevenueForMargin > 0
-        ? ((totalRevenueForMargin - totalCostoForMargin) / totalRevenueForMargin) * 100
-        : 0;
-
-    // Convertir rankings
-    const productsSales = Object.values(productSalesMap);
-    
-    // Top más vendidos (por total facturado)
-    const topSellers = [...productsSales]
-        .map(p => ({
-            sku: p.sku,
-            descripcion: p.descripcion,
-            cantidad: p.cantidad,
-            total: p.total,
-            marginPct: p.total > 0 ? ((p.total - p.totalCosto) / p.total) * 100 : 0
-        }))
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 5);
-
-    // Margen negativo o crítico (margen % < 10)
-    const negativeMargins = [...productsSales]
-        .map(p => ({
-            sku: p.sku,
-            descripcion: p.descripcion,
-            total: p.total,
-            marginPct: p.total > 0 ? ((p.total - p.totalCosto) / p.total) * 100 : 0
-        }))
-        .filter(p => p.marginPct < 10 && !CORRUPT_SKUS.includes(p.sku))
-        .sort((a, b) => a.marginPct - b.marginPct)
-        .slice(0, 5);
-
-    const negativeMarginCount = productsSales.filter(p => {
-        const margin = p.total > 0 ? ((p.total - p.totalCosto) / p.total) * 100 : 0;
-        return margin < 0 && !CORRUPT_SKUS.includes(p.sku);
-    }).length;
-
-    // Dead Stock: Productos con stock en sistema > 0 y 0 ventas en el período
-    const deadStockList = invList
-        .filter(inv => {
-            const hasStock = (Number(inv.system_stock) || 0) > 0;
-            const hasNoSales = !skusWithSales.has(inv.sku);
-            
-            // Si hay filtro por clasificación
-            if (filters.classification && filters.classification !== 'ALL') {
-                return hasStock && hasNoSales && inv.classification === filters.classification;
-            }
-            return hasStock && hasNoSales;
+    try {
+        // 1. Llamar al RPC para diario acumulado
+        const { data: dailyData, error: dailyError } = await supabase.rpc('get_daily_sales_behavior', {
+            start_date: limitDate,
+            end_date: hoyStr,
+            classification_filter: targetClassification
         });
 
-    const deadStockCount = deadStockList.length;
+        if (dailyError) {
+            throw new Error(`get_daily_sales_behavior falló: ${dailyError.message}`);
+        }
 
-    // Bottom sellers (5 items del dead stock)
-    const bottomSellers = deadStockList
-        .slice(0, 5)
-        .map(i => ({
-            sku: i.sku,
-            descripcion: i.description || 'Sin descripción',
-            system_stock: Number(i.system_stock) || 0,
-            classification: i.classification || 'General',
-            brand: i.brand || 'Genérica'
+        // Calcular agregados de ventas del período
+        let totalSales = 0;
+        let totalRevenueForMargin = 0;
+        let totalCostoForMargin = 0;
+
+        const trendData = (dailyData || []).map((row: any) => {
+            const v = Number(row.total_venta) || 0;
+            const c = Number(row.total_costo) || 0;
+            const vm = Number(row.total_venta_margin) || 0;
+            const cm = Number(row.total_costo_margin) || 0;
+
+            totalSales += v;
+            totalRevenueForMargin += vm;
+            totalCostoForMargin += cm;
+
+            return {
+                fecha: String(row.fecha),
+                total: v,
+                margenPct: vm > 0 ? ((vm - cm) / vm) * 100 : 0
+            };
+        });
+
+        const avgMarginPct = totalRevenueForMargin > 0
+            ? ((totalRevenueForMargin - totalCostoForMargin) / totalRevenueForMargin) * 100
+            : 0;
+
+        // 2. Rankings por RPC
+        const { data: topSellersData, error: topError } = await supabase.rpc('get_top_sellers', {
+            start_date: limitDate,
+            end_date: hoyStr,
+            classification_filter: targetClassification,
+            max_limit: 5
+        });
+
+        if (topError) {
+            throw new Error(`get_top_sellers falló: ${topError.message}`);
+        }
+
+        const topSellers = (topSellersData || []).map((row: any) => ({
+            sku: row.sku,
+            descripcion: row.descripcion,
+            cantidad: Number(row.cantidad) || 0,
+            total: Number(row.total) || 0,
+            marginPct: Number(row.margin_pct) || 0
         }));
 
-    // Formatear datos de tendencia
-    const trendData = Object.entries(dailySalesMap)
-        .map(([fecha, d]) => ({
-            fecha,
-            total: d.total,
-            margenPct: d.total > 0 ? ((d.total - d.totalCosto) / d.total) * 100 : 0
-        }))
-        .sort((a, b) => a.fecha.localeCompare(b.fecha));
+        // Márgenes Críticos (< 10%)
+        const { data: negMarginsData, error: negError } = await supabase.rpc('get_negative_margins', {
+            start_date: limitDate,
+            end_date: hoyStr,
+            classification_filter: targetClassification,
+            max_limit: 5
+        });
 
-    return {
-        totalSales: totalSalesVal,
-        avgMarginPct,
-        negativeMarginCount,
-        deadStockCount,
-        trendData,
-        topSellers,
-        bottomSellers,
-        negativeMargins,
-        classifications
-    };
+        if (negError) {
+            throw new Error(`get_negative_margins falló: ${negError.message}`);
+        }
+
+        const negativeMargins = (negMarginsData || []).map((row: any) => ({
+            sku: row.sku,
+            descripcion: row.descripcion,
+            total: Number(row.total) || 0,
+            marginPct: Number(row.margin_pct) || 0
+        }));
+
+        // Conteo general de márgenes negativos
+        const { data: negCountData, error: negCountError } = await supabase.rpc('get_negative_margin_count', {
+            start_date: limitDate,
+            end_date: hoyStr,
+            classification_filter: targetClassification
+        });
+
+        if (negCountError) {
+            throw new Error(`get_negative_margin_count falló: ${negCountError.message}`);
+        }
+
+        const negativeMarginCount = Number(negCountData) || 0;
+
+        // Dead Stock
+        const { data: deadStockData, error: deadStockError } = await supabase.rpc('get_dead_stock', {
+            start_date: limitDate,
+            end_date: hoyStr,
+            classification_filter: targetClassification,
+            max_limit: 5
+        });
+
+        if (deadStockError) {
+            throw new Error(`get_dead_stock falló: ${deadStockError.message}`);
+        }
+
+        const bottomSellers = (deadStockData || []).map((row: any) => ({
+            sku: row.sku,
+            descripcion: row.descripcion,
+            system_stock: Number(row.system_stock) || 0,
+            classification: row.classification,
+            brand: row.brand
+        }));
+
+        const { data: deadStockCountData, error: deadStockCountError } = await supabase.rpc('get_dead_stock_count', {
+            start_date: limitDate,
+            end_date: hoyStr,
+            classification_filter: targetClassification
+        });
+
+        if (deadStockCountError) {
+            throw new Error(`get_dead_stock_count falló: ${deadStockCountError.message}`);
+        }
+
+        const deadStockCount = Number(deadStockCountData) || 0;
+
+        // Clasificaciones distintas
+        const { data: classifData } = await supabase
+            .from('inventory_master')
+            .select('classification')
+            .eq('is_service', false)
+            .not('classification', 'is', null);
+
+        const classifications = Array.from(new Set((classifData || []).map(c => c.classification).filter(Boolean))) as string[];
+
+        return {
+            totalSales,
+            avgMarginPct,
+            negativeMarginCount,
+            deadStockCount,
+            trendData,
+            topSellers,
+            bottomSellers,
+            negativeMargins,
+            classifications
+        };
+
+    } catch (e: any) {
+        console.error('[BehaviorAnalytics] Falló agregación server-side:', e.message);
+        return { error: `Error al procesar estadísticas: ${e.message}` };
+    }
 }
 
 /**
@@ -382,7 +370,7 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
     }
 
     const supabase = await createClient();
-    const targetDay = diaStr || new Date().toISOString().split('T')[0];
+    const targetDay = diaStr || getColombiaDateString();
 
     // Consultar todos los snapshots de ese día en orden cronológico
     const { data: snapshots, error: snapError } = await supabase
@@ -424,9 +412,10 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
         const snap_02 = snaps.find(s => s.db_source === '02') || { venta: 0, unidades: 0 };
         const snap_all = snaps.find(s => s.db_source === 'ALL') || { venta: 0, unidades: 0 };
 
-        // Convertir captured_at a hora local legible "HH:MM"
+        // Convertir captured_at a hora local legible "HH:MM" de Colombia (UTC-5)
         const dateObj = new Date(time);
         const horaStr = dateObj.toLocaleTimeString('es-CO', {
+            timeZone: 'America/Bogota',
             hour: '2-digit',
             minute: '2-digit',
             hour12: false
@@ -476,4 +465,19 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
 
     return points;
 }
+
+// Helper local para fecha Colombia YYYY-MM-DD
+function getColombiaDateString(d: Date = new Date()): string {
+    const colombiaOffset = -5 * 60; // en minutos
+    const localTime = d.getTime();
+    const localOffset = d.getTimezoneOffset(); // en minutos
+    const utcTime = localTime + (localOffset * 60 * 1000);
+    const colombiaTime = new Date(utcTime + (colombiaOffset * 60 * 1000));
+    
+    const year = colombiaTime.getFullYear();
+    const month = String(colombiaTime.getMonth() + 1).padStart(2, '0');
+    const day = String(colombiaTime.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 

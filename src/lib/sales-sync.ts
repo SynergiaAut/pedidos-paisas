@@ -97,13 +97,26 @@ export async function runSalesSync(
 
 const CORRUPT_SKUS = ['2202007', '701042', '606042'];
 
+function getColombiaDateString(d: Date = new Date()): string {
+    const colombiaOffset = -5 * 60; // en minutos
+    const localTime = d.getTime();
+    const localOffset = d.getTimezoneOffset(); // en minutos
+    const utcTime = localTime + (localOffset * 60 * 1000);
+    const colombiaTime = new Date(utcTime + (colombiaOffset * 60 * 1000));
+    
+    const year = colombiaTime.getFullYear();
+    const month = String(colombiaTime.getMonth() + 1).padStart(2, '0');
+    const day = String(colombiaTime.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 export async function runSalesSnapshot(): Promise<{ success: boolean; rows_inserted?: number; error?: string }> {
     const supabase = createAdminClient();
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = getColombiaDateString();
     const capturedAt = new Date().toISOString();
 
     try {
-        console.log(`[SnapshotVentas] Calculando acumulado de ventas de hoy (${hoy})...`);
+        console.log(`[SnapshotVentas] Calculando acumulado de ventas de hoy (${hoy}) en hora Colombia...`);
         
         // Consultar todas las ventas de hoy
         const { data: sales, error: queryError } = await supabase
