@@ -23,6 +23,8 @@ export interface InventoryRow {
     stock_by_warehouse: CrmStockBodega[];
     is_service: boolean;
     last_sync_at: string;
+    needs_review: boolean;
+    review_reason: string | null;
 }
 
 /** Clasificaciones que no son inventario físico (fletes, servicios). */
@@ -101,19 +103,42 @@ export function repairMojibake(str: string | null | undefined): string {
 
 export function mapToInventoryRow(p: CrmProductTagged, now: Date = new Date()): InventoryRow {
     const barcode = (p.referencia ?? '').trim();
+    
+    // Reglas de validación
+    const CORRUPT_SKUS = ['2202007', '701042', '606042'];
+    const reasons: string[] = [];
+    const stock = p.existencia_total ?? 0;
+    const cost = p.costo_promedio ?? 0;
+    const unit = (p.unidad || '').trim();
+
+    if (stock < 0 || stock > 100000) {
+        reasons.push(`Stock atípico (${stock} unds)`);
+    }
+    if (cost < 0 || cost > 500000 || CORRUPT_SKUS.includes(p.sku)) {
+        reasons.push(CORRUPT_SKUS.includes(p.sku) ? `SKU corrupto conocido en ERP` : `Costo promedio atípico ($${cost})`);
+    }
+    if (!unit) {
+        reasons.push('Falta unidad de medida');
+    }
+
+    const needs_review = reasons.length > 0;
+    const review_reason = needs_review ? reasons.join(', ') : null;
+
     return {
         db_source: p.db_source,
         item_id: skuToItemId(p.sku),
         sku: p.sku,
         barcode: barcode.length > 0 ? barcode : null,
         description: repairMojibake((p.descripcion ?? '').trim()),
-        system_stock: p.existencia_total ?? 0,
-        cost_avg: p.costo_promedio ?? 0,
+        system_stock: stock,
+        cost_avg: cost,
         classification: p.clasificacion || null,
         brand: p.marca || null,
-        unit: p.unidad || null,
+        unit: unit || null,
         stock_by_warehouse: p.stock_por_bodega ?? [],
         is_service: isService(p),
         last_sync_at: now.toISOString(),
+        needs_review,
+        review_reason
     };
 }

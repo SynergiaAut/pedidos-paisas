@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowLeft, Printer } from 'lucide-react';
 import { Order } from '@/types/order';
+import { DbBadge } from '@/components/ui/DbBadge';
 
 export default function PrintOrderPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = React.use(params);
@@ -111,9 +112,12 @@ export default function PrintOrderPage({ params }: { params: Promise<{ id: strin
 
                     {/* Order Info */}
                     <div className="space-y-1 mb-2">
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                             <span className="font-bold">ORDEN:</span>
-                            <span className="font-bold text-sm">{order.public_id}</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-sm">{order.public_id}</span>
+                                {(order as any).db_source && <DbBadge db={(order as any).db_source} />}
+                            </div>
                         </div>
                         <div className="flex justify-between">
                             <span>Estado:</span>
@@ -189,9 +193,7 @@ export default function PrintOrderPage({ params }: { params: Promise<{ id: strin
                                         <div className="flex-1">
                                             <span>{p.name}</span>
                                             {p.type && (
-                                                <span className="text-[9px] border border-black/40 rounded px-0.5 ml-1 font-bold font-mono">
-                                                    {p.type}
-                                                </span>
+                                                <DbBadge db={p.type} className="ml-1 text-[8px] px-1 py-0" />
                                             )}
                                         </div>
                                         <span className="w-16 text-right">{formatMoney(p.total ?? (p.price * p.qty))}</span>

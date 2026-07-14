@@ -5,6 +5,7 @@ import { UnifiedStockTable } from '@/components/inventory/UnifiedStockTable';
 import { CyclicCountWizard } from '@/components/inventory/CyclicCountWizard';
 import { InventoryAnalysisTab } from '@/components/inventory/InventoryAnalysisTab';
 import { BehaviorTab } from '@/components/inventory/BehaviorTab';
+import { DataQualityTab } from '@/components/inventory/DataQualityTab';
 import { 
   Package, 
   AlertTriangle, 
@@ -13,7 +14,8 @@ import {
   ArrowUpRight,
   ClipboardCheck,
   Boxes,
-  X
+  X,
+  ShieldAlert
 } from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -58,7 +60,7 @@ function timeAgo(iso: string | null): string {
 }
 
 export default function InventarioPage() {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'analysis' | 'behavior'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'analysis' | 'behavior' | 'quality'>('catalog');
   const [showWizard, setShowWizard] = useState(false);
   const [selectedPendingSession, setSelectedPendingSession] = useState<any | null>(null);
   const [stats, setStats] = useState<InventoryStats | null>(null);
@@ -186,8 +188,8 @@ export default function InventarioPage() {
         />
         <StatsCard
           title="Unidades en Stock"
-          value={stats ? Math.round(stats.stockUnits).toLocaleString('es-CO') : '…'}
-          subtitle={stats ? `BD1: ${Math.round(stats.stockUnitsByDb['01'] ?? 0).toLocaleString('es-CO')} · BD2: ${Math.round(stats.stockUnitsByDb['02'] ?? 0).toLocaleString('es-CO')}` : undefined}
+          value={stats ? `${Math.round(stats.stockUnitsByDb['01'] ?? 0).toLocaleString('es-CO')} / ${Math.round(stats.stockUnitsByDb['02'] ?? 0).toLocaleString('es-CO')}` : '…'}
+          subtitle={stats ? "Interna (BD1) / Fiscal (BD2) desglosadas" : undefined}
           icon={Boxes}
           color="bg-cyan-500/20"
         />
@@ -253,6 +255,16 @@ export default function InventarioPage() {
         >
           Comportamiento
         </button>
+        <button
+          onClick={() => setActiveTab('quality')}
+          className={`px-4 py-2 text-sm font-semibold transition-all border-b-2 ${
+            activeTab === 'quality'
+              ? 'border-emerald-500 text-emerald-400 font-bold'
+              : 'border-transparent text-gray-400 hover:text-gray-200'
+          }`}
+        >
+          Calidad de Datos
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -261,15 +273,17 @@ export default function InventarioPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-white">Catálogo de Productos</h2>
-              <span className="text-xs text-gray-500">Mostrando datos de DB 01 e DB 02</span>
+              <span className="text-xs text-gray-500">Mostrando datos de DB 01 y DB 02</span>
             </div>
             
             <UnifiedStockTable />
           </div>
         ) : activeTab === 'analysis' ? (
           <InventoryAnalysisTab />
-        ) : (
+        ) : activeTab === 'behavior' ? (
           <BehaviorTab />
+        ) : (
+          <DataQualityTab />
         )}
       </div>
     </div>

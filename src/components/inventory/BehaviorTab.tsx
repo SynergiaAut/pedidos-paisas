@@ -278,16 +278,16 @@ export function BehaviorTab() {
                                         <AreaChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                                             <defs>
                                                 <linearGradient id="colorIntradayAll" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.15}/>
-                                                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                                                    <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.15}/>
+                                                    <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
                                                 </linearGradient>
                                                 <linearGradient id="colorIntraday01" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
-                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15}/>
+                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                                                 </linearGradient>
                                                 <linearGradient id="colorIntraday02" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -303,25 +303,25 @@ export function BehaviorTab() {
                                                 type="monotone" 
                                                 name="General (Consolidado)"
                                                 dataKey="venta_all"
-                                                stroke="#a855f7"
+                                                stroke="#94a3b8"
                                                 strokeWidth={3}
                                                 fillOpacity={1}
                                                 fill="url(#colorIntradayAll)"
                                             />
                                             <Area 
                                                 type="monotone" 
-                                                name="BD1 (Los Paisas)"
+                                                name="BD1 (Interna)"
                                                 dataKey="venta_01"
-                                                stroke="#10b981"
+                                                stroke="#6366f1"
                                                 strokeWidth={2}
                                                 fillOpacity={1}
                                                 fill="url(#colorIntraday01)"
                                             />
                                             <Area 
                                                 type="monotone" 
-                                                name="BD2 (Paisas Fiscal)"
+                                                name="BD2 (Fiscal)"
                                                 dataKey="venta_02"
-                                                stroke="#3b82f6"
+                                                stroke="#10b981"
                                                 strokeWidth={2}
                                                 fillOpacity={1}
                                                 fill="url(#colorIntraday02)"
@@ -342,23 +342,23 @@ export function BehaviorTab() {
                                                 type="monotone" 
                                                 name="General (Consolidado)"
                                                 dataKey="delta_venta_all"
-                                                stroke="#a855f7"
+                                                stroke="#94a3b8"
                                                 strokeWidth={2.5}
                                                 dot={true}
                                             />
                                             <Line 
                                                 type="monotone" 
-                                                name="BD1 (Los Paisas)"
+                                                name="BD1 (Interna)"
                                                 dataKey="delta_venta_01"
-                                                stroke="#10b981"
+                                                stroke="#6366f1"
                                                 strokeWidth={1.8}
                                                 dot={true}
                                             />
                                             <Line 
                                                 type="monotone" 
-                                                name="BD2 (Paisas Fiscal)"
+                                                name="BD2 (Fiscal)"
                                                 dataKey="delta_venta_02"
-                                                stroke="#3b82f6"
+                                                stroke="#10b981"
                                                 strokeWidth={1.8}
                                                 dot={true}
                                             />

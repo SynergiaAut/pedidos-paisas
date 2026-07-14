@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Search, Database, RefreshCw, AlertCircle, Calendar } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { DbBadge } from '../ui/DbBadge';
 
 interface Product {
   db_source: string;
@@ -189,9 +190,7 @@ export const UnifiedStockTable = () => {
                 visibleProducts.map((p) => (
                   <tr key={`${p.db_source}-${p.sku}`} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold ${p.db_source === '01' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                        {p.db_source === '01' ? 'Interna' : 'Fiscal'}
-                      </span>
+                      <DbBadge db={p.db_source} />
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">

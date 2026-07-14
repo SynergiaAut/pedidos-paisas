@@ -480,4 +480,147 @@ function getColombiaDateString(d: Date = new Date()): string {
     return `${year}-${month}-${day}`;
 }
 
+// ==========================================
+// INVENTORY QUALITY REPORT ACTIONS (Fase C)
+// ==========================================
+
+export interface QualityReportItem {
+    sku: string;
+    description: string;
+    inconsistencyType: 'description_divergence' | 'unit_divergence' | 'cost_outlier' | 'stock_outlier' | 'missing_unit';
+    severity: 'high' | 'medium' | 'low';
+    details: string;
+    db1Value?: string;
+    db2Value?: string;
+}
+
+export async function getInventoryQualityReport(): Promise<QualityReportItem[] | { error: string }> {
+    const isAdmin = await verifyAdmin();
+    if (!isAdmin) {
+        return { error: 'Acceso denegado. Se requieren permisos de administrador.' };
+    }
+
+    const supabase = await createClient();
+
+    try {
+        // Traer catálogo completo
+        const { data: inventory, error: invError } = await supabase
+            .from('inventory_master')
+            .select('sku, db_source, description, unit, system_stock, cost_avg, is_service')
+            .eq('is_service', false);
+
+        if (invError) {
+            throw new Error(`Error al traer inventario: ${invError.message}`);
+        }
+
+        const items = inventory || [];
+        const report: QualityReportItem[] = [];
+
+        // Agrupar por SKU
+        const skuGroups: Record<string, any[]> = {};
+        for (const item of items) {
+            const sku = item.sku;
+            if (!skuGroups[sku]) {
+                skuGroups[sku] = [];
+            }
+            skuGroups[sku].push(item);
+        }
+
+        for (const [sku, list] of Object.entries(skuGroups)) {
+            const item01 = list.find(i => i.db_source === '01');
+            const item02 = list.find(i => i.db_source === '02');
+            const primaryItem = item01 || item02 || { description: 'Sin descripción' };
+
+            // 1. Divergencia de descripción
+            if (item01 && item02) {
+                const desc1 = (item01.description || '').trim().toLowerCase();
+                const desc2 = (item02.description || '').trim().toLowerCase();
+                if (desc1 !== desc2) {
+                    report.push({
+                        sku,
+                        description: item01.description,
+                        inconsistencyType: 'description_divergence',
+                        severity: 'medium',
+                        details: 'Descripciones divergentes entre bases.',
+                        db1Value: item01.description,
+                        db2Value: item02.description
+                    });
+                }
+            }
+
+            // 2. Divergencia de unidades de medida
+            if (item01 && item02) {
+                const unit1 = (item01.unit || '').trim().toLowerCase();
+                const unit2 = (item02.unit || '').trim().toLowerCase();
+                if (unit1 !== unit2) {
+                    report.push({
+                        sku,
+                        description: primaryItem.description,
+                        inconsistencyType: 'unit_divergence',
+                        severity: 'medium',
+                        details: 'Unidades de medida distintas entre bases.',
+                        db1Value: item01.unit || 'Sin unidad',
+                        db2Value: item02.unit || 'Sin unidad'
+                    });
+                }
+            }
+
+            // 3. Outliers de stock o costo por base
+            for (const item of list) {
+                const stock = Number(item.system_stock) || 0;
+                const cost = Number(item.cost_avg) || 0;
+
+                // Stocks anormalmente altos (ej. > 100k unds) o negativos
+                if (stock < 0 || stock > 100000) {
+                    report.push({
+                        sku,
+                        description: item.description,
+                        inconsistencyType: 'stock_outlier',
+                        severity: stock < 0 ? 'high' : 'medium',
+                        details: `Stock anormal en BD ${item.db_source}: ${stock} unidades.`,
+                        db1Value: item.db_source === '01' ? String(stock) : undefined,
+                        db2Value: item.db_source === '02' ? String(stock) : undefined
+                    });
+                }
+
+                // Costo anormalmente alto (ej. > 500k pesos) o corrupto predefinido
+                if (cost < 0 || cost > 500000 || CORRUPT_SKUS.includes(sku)) {
+                    const isKnownCorrupt = CORRUPT_SKUS.includes(sku);
+                    report.push({
+                        sku,
+                        description: item.description,
+                        inconsistencyType: 'cost_outlier',
+                        severity: 'high',
+                        details: isKnownCorrupt 
+                            ? `Costo corrupto conocido (ERP) en BD ${item.db_source}: $${cost}`
+                            : `Costo promedio atípico en BD ${item.db_source}: $${cost}`,
+                        db1Value: item.db_source === '01' ? `$${cost}` : undefined,
+                        db2Value: item.db_source === '02' ? `$${cost}` : undefined
+                    });
+                }
+
+                // 4. Falta de unidad de medida
+                if (!item.unit || item.unit.trim() === '') {
+                    report.push({
+                        sku,
+                        description: item.description,
+                        inconsistencyType: 'missing_unit',
+                        severity: 'low',
+                        details: `Falta unidad de medida en BD ${item.db_source}.`,
+                        db1Value: item.db_source === '01' ? 'Vacía' : undefined,
+                        db2Value: item.db_source === '02' ? 'Vacía' : undefined
+                    });
+                }
+            }
+        }
+
+        return report;
+
+    } catch (e: any) {
+        console.error('[QualityAudit] Error al compilar reporte de calidad:', e.message);
+        return { error: `Error al compilar auditoría: ${e.message}` };
+    }
+}
+
+
 
