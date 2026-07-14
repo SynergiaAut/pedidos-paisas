@@ -552,3 +552,94 @@ export function hasCredentials(db: DbSource): boolean {
         '';
     return !!(correo && correo.trim() && clave && clave.trim());
 }
+
+// ==========================================
+// MAPPING: INVOICES TO SALES_LINES (Fase A)
+// ==========================================
+
+export interface SalesLineRow {
+    db_source: DbSource;
+    tipodoc: string;
+    numero: string;
+    fecha: string; // formato YYYY-MM-DD
+    sku: string;
+    descripcion: string | null;
+    id_clasificacion: string | null;
+    id_marca: string | null;
+    id_bodega: string | null;
+    id_vendedor: number | null;
+    cantidad: number;
+    precio: number;
+    total: number;
+    costo_unit: number;
+    total_costo: number;
+    margen: number;
+}
+
+function parseDateToIso(fechaStr: string): string {
+    const parts = fechaStr.split('/');
+    if (parts.length === 3) {
+        const [day, month, year] = parts;
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    return fechaStr;
+}
+
+export function invoiceLinesToSalesRows(invoice: CrmInvoiceNormalized): SalesLineRow[] {
+    const rawItems = invoice.raw?.items || [];
+    const dbFecha = parseDateToIso(invoice.fecha);
+    
+    // Agrupar items con el mismo SKU por si se repite en la misma factura
+    const itemGroups: Record<string, any[]> = {};
+    for (const rawItem of rawItems) {
+        if (!rawItem.ID_ITEM) continue;
+        const sku = String(rawItem.ID_ITEM).trim();
+        if (!itemGroups[sku]) {
+            itemGroups[sku] = [];
+        }
+        itemGroups[sku].push(rawItem);
+    }
+    
+    const rows: SalesLineRow[] = [];
+    
+    for (const [sku, items] of Object.entries(itemGroups)) {
+        let cantidad = 0;
+        let total = 0;
+        let totalCosto = 0;
+        const first = items[0];
+        
+        for (const item of items) {
+            cantidad += item.CANTIDAD ?? 0;
+            total += item.TOTAL ?? item.TOTAL_ITEM ?? 0;
+            totalCosto += item.TOTAL_COSTO ?? ((item.CANTIDAD ?? 0) * (item.COSTO_KARDEX ?? 0));
+        }
+        
+        const precio = cantidad > 0 ? (total / cantidad) : (first.PRECIO ?? 0);
+        const costoUnit = cantidad > 0 ? (totalCosto / cantidad) : (first.COSTO_KARDEX ?? 0);
+        
+        // Calcular porcentaje de margen basado en total y total_costo
+        const marginPct = total > 0 ? parseFloat((((total - totalCosto) / total) * 100).toFixed(2)) : 0;
+        
+        rows.push({
+            db_source: invoice.db_source,
+            tipodoc: invoice.tipodoc,
+            numero: invoice.numero,
+            fecha: dbFecha,
+            sku,
+            descripcion: repairMojibake((first.DESCRIPCION_ITEM ?? '').trim()) || null,
+            id_clasificacion: first.ID_CLASIFICACION ? String(first.ID_CLASIFICACION).trim() : null,
+            id_marca: first.ID_MARCA_ITEM ? String(first.ID_MARCA_ITEM).trim() : null,
+            id_bodega: first.ID_BODEGA ? String(first.ID_BODEGA).trim() : null,
+            id_vendedor: invoice.id_vendedor || null,
+            cantidad,
+            precio,
+            total,
+            costo_unit: costoUnit,
+            total_costo: totalCosto,
+            margen: marginPct
+        });
+    }
+    
+    return rows;
+}
+
