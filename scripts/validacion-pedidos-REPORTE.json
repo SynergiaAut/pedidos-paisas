@@ -1,0 +1,171 @@
+{
+  "generado": "2026-07-13T19:55:47.442Z",
+  "rango": {
+    "DESDE": "2026-06-13",
+    "HASTA": "2026-07-13"
+  },
+  "base": "https://me.services.ibla.co",
+  "results": [
+    {
+      "db": "01",
+      "label": "BD1 (GRANESLOSPAISAS)",
+      "ok": true,
+      "endpoints": {
+        "order_all": {
+          "status": 200,
+          "ms": 1575,
+          "ok": true,
+          "arrayKey": "pedidos",
+          "count": 0,
+          "keys": [],
+          "lineField": null,
+          "itemKeys": null,
+          "sample": null
+        },
+        "invoice_all": {
+          "status": 200,
+          "ms": 12276,
+          "ok": true,
+          "arrayKey": "invoices",
+          "count": 4738,
+          "keys": [
+            "FECHA",
+            "ID_TIPO_DOC",
+            "NUMERO",
+            "FECHA_DESPACHO",
+            "ID_TERCERO",
+            "ID_SUCURSAL_TERCERO",
+            "NOMBRE_TERCERO",
+            "DIRECCION_TERCERO",
+            "E_MAIL_TERCERO",
+            "ID_VENDEDOR",
+            "NOMBRE_VENDEDOR",
+            "ID_ZONA",
+            "DESCRIPCION_ZONA",
+            "ID_DESTINO",
+            "DESCRIPCION_DESTINO",
+            "ID_PAIS",
+            "ID_DEPTO",
+            "ID_CIUDAD",
+            "DIRECCION",
+            "TELEFONO",
+            "NOMBRE_PAIS_CLIENTE",
+            "NOMBRE_DEPTO_CLIENTE",
+            "NOMBRE_CIUDAD_CLIENTE",
+            "items"
+          ],
+          "lineField": "items",
+          "itemKeys": [
+            "ID_ITEM",
+            "DESCRIPCION_ITEM",
+            "ID_MARCA_ITEM",
+            "DESCRIPCION_MARCA",
+            "ID_PADRE_CLASIFICACION",
+            "DES_CLASIF_PADRE",
+            "ID_CLASIFICACION",
+            "DESCRIPCION_CLASIFICACION",
+            "ID_UNIDAD_COMPRA",
+            "ID_BODEGA",
+            "CANTIDAD",
+            "PRECIO",
+            "TOTAL_ITEM",
+            "TASA_DCTO_FIJO",
+            "TOTAL_DCTO",
+            "SUBTOTAL",
+            "TASA_IVA",
+            "TOTAL_IVA",
+            "TOTAL",
+            "COSTO_KARDEX",
+            "TOTAL_COSTO",
+            "MARGEN",
+            "MAGEN_GLOBAL"
+          ],
+          "sample": "{\"FECHA\":\"13/06/2026\",\"ID_TIPO_DOC\":\"POS\",\"NUMERO\":418856,\"FECHA_DESPACHO\":\"1899-12-30T04:56:16.000Z\",\"ID_TERCERO\":1,\"ID_SUCURSAL_TERCERO\":1,\"NOMBRE_TERCERO\":\"REMISION  COMERCIAL \",\"DIRECCION_TERCERO\":\"SN\",\"E_MAIL_TERCERO\":\"\",\"ID_VENDEDOR\":1114835229,\"NOMBRE_VENDEDOR\":\"ARANGO QUENGUAN DIANA JISSEL\",\"ID_ZONA\":\"\",\"DESCRIPCION_ZONA\":null,\"ID_DESTINO\":\"\",\"DESCRIPCION_DESTINO\":\"\",\"ID_PAIS\":\"169\",\"ID_DEPTO\":\"76\",\"ID_CIUDAD\":\"76520\",\"DIRECCION\":\"SN\",\"TELEFONO\":\"\",\"NOMBRE_PAIS_CLIENTE\":\"Colombia\",\"NOMBRE_DEPTO_CLIENTE\":\"Valle del Cauca\",\"NOMBRE_CIUDAD_CLIENTE\":\"Palmira\",\"items\":[{\"ID_ITEM\":\"2202012\",\"DESCRIPCION_ITEM\":\"GATORADE  X 12 UND\",\"ID_MARCA_ITEM\":\"0233\",\"DESCRIPCION_MARCA\":\"POSTOBON\",\"ID_PAD..."
+        },
+        "invoice_one": {
+          "status": 200,
+          "ms": 1720,
+          "ok": true,
+          "probe": {
+            "tipodoc": "POS",
+            "numero": "418856"
+          },
+          "lineField": "items",
+          "itemKeys": [
+            "ID_ITEM",
+            "DESCRIPCION_ITEM",
+            "ID_MARCA_ITEM",
+            "DESCRIPCION_MARCA",
+            "ID_PADRE_CLASIFICACION",
+            "DES_CLASIF_PADRE",
+            "ID_CLASIFICACION",
+            "DESCRIPCION_CLASIFICACION",
+            "ID_UNIDAD_COMPRA",
+            "ID_BODEGA",
+            "CANTIDAD",
+            "PRECIO",
+            "TOTAL_ITEM",
+            "TASA_DCTO_FIJO",
+            "TOTAL_DCTO",
+            "SUBTOTAL",
+            "TASA_IVA",
+            "TOTAL_IVA",
+            "TOTAL",
+            "COSTO_KARDEX",
+            "TOTAL_COSTO",
+            "MARGEN",
+            "MAGEN_GLOBAL"
+          ],
+          "sample": "{\"FECHA\":\"13/06/2026\",\"ID_TIPO_DOC\":\"POS\",\"NUMERO\":418856,\"FECHA_DESPACHO\":\"1899-12-30T04:56:16.000Z\",\"ID_TERCERO\":1,\"ID_SUCURSAL_TERCERO\":1,\"NOMBRE_TERCERO\":\"REMISION  COMERCIAL \",\"DIRECCION_TERCERO\":\"SN\",\"E_MAIL_TERCERO\":\"\",\"ID_VENDEDOR\":1114835229,\"NOMBRE_VENDEDOR\":\"ARANGO QUENGUAN DIANA JISSEL\",\"ID_ZONA\":\"\",\"DESCRIPCION_ZONA\":null,\"ID_DESTINO\":\"\",\"DESCRIPCION_DESTINO\":\"\",\"ID_PAIS\":\"169\",\"ID_DEPTO\":\"76\",\"ID_CIUDAD\":\"76520\",\"DIRECCION\":\"SN\",\"TELEFONO\":\"\",\"NOMBRE_PAIS_CLIENTE\":\"Colombia\",\"NOMBRE_DEPTO_CLIENTE\":\"Valle del Cauca\",\"NOMBRE_CIUDAD_CLIENTE\":\"Palmira\",\"items\":[{\"ID_ITEM\":\"2202012\",\"DESCRIPCION_ITEM\":\"GATORADE  X 12 UND\",\"ID_MARCA_ITEM\":\"0233\",\"DESCRIPCION_MARCA\":\"POSTOBON\",\"ID_PAD..."
+        },
+        "customer_all": {
+          "status": 200,
+          "ms": 3908,
+          "ok": true,
+          "arrayKey": "customers",
+          "count": 1222,
+          "keys": [
+            "idTercero",
+            "dv",
+            "nombre",
+            "tipo_empresa",
+            "sucursales",
+            "contactos"
+          ],
+          "lineField": "sucursales",
+          "itemKeys": [
+            "ID_SUCURSAL_TERCERO",
+            "FECHA_CREACION",
+            "E_MAIL",
+            "NOMBRE_SUCURSAL",
+            "TELEFONO",
+            "TELEFONO_CELULAR",
+            "DIRECCION",
+            "ID_CIUDAD",
+            "CLIENTE",
+            "PROVEEDOR"
+          ],
+          "sample": "{\"idTercero\":\"1\",\"dv\":\"\",\"nombre\":\"REMISION  COMERCIAL \",\"tipo_empresa\":\"PN\",\"sucursales\":[{\"ID_SUCURSAL_TERCERO\":1,\"FECHA_CREACION\":\"06/09/2018\",\"E_MAIL\":\"\",\"NOMBRE_SUCURSAL\":\"REMISION  COMERCIAL \",\"TELEFONO\":\"\",\"TELEFONO_CELULAR\":\"\",\"DIRECCION\":\"SN\",\"ID_CIUDAD\":\"76520\",\"CLIENTE\":\"SI\",\"PROVEEDOR\":\"NO\"}],\"contactos\":[]}"
+        }
+      },
+      "verdict": {
+        "captura_desde_api": true,
+        "fuente_recomendada": "facturas (/crm/all/invoice)",
+        "detalle_linea_pedido": false,
+        "detalle_linea_factura": true,
+        "reconciliacion_por_sku_posible": true
+      },
+      "login_ms": 565,
+      "empresa": "DEPOSITO DE GRANOS Y LICORES LOS PAISAS SAS",
+      "nit": "901107512"
+    },
+    {
+      "db": "02",
+      "label": "BD2 (PAISASFISCAL)",
+      "ok": false,
+      "endpoints": {},
+      "verdict": {},
+      "error": "Credenciales no configuradas para 02"
+    }
+  ]
+}

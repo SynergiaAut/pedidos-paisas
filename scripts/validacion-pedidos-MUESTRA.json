@@ -1,0 +1,163 @@
+[
+  {
+    "db": "01",
+    "muestras": {
+      "factura": {
+        "factura": {
+          "FECHA": "13/06/2026",
+          "ID_TIPO_DOC": "POS",
+          "NUMERO": 418856,
+          "FECHA_DESPACHO": "1899-12-30T04:56:16.000Z",
+          "ID_TERCERO": 1,
+          "ID_SUCURSAL_TERCERO": 1,
+          "NOMBRE_TERCERO": "REMISION  COMERCIAL ",
+          "DIRECCION_TERCERO": "SN",
+          "E_MAIL_TERCERO": "",
+          "ID_VENDEDOR": 1114835229,
+          "NOMBRE_VENDEDOR": "ARANGO QUENGUAN DIANA JISSEL",
+          "ID_ZONA": "",
+          "DESCRIPCION_ZONA": null,
+          "ID_DESTINO": "",
+          "DESCRIPCION_DESTINO": "",
+          "ID_PAIS": "169",
+          "ID_DEPTO": "76",
+          "ID_CIUDAD": "76520",
+          "DIRECCION": "SN",
+          "TELEFONO": "",
+          "NOMBRE_PAIS_CLIENTE": "Colombia",
+          "NOMBRE_DEPTO_CLIENTE": "Valle del Cauca",
+          "NOMBRE_CIUDAD_CLIENTE": "Palmira",
+          "items": [
+            {
+              "ID_ITEM": "2202012",
+              "DESCRIPCION_ITEM": "GATORADE  X 12 UND",
+              "ID_MARCA_ITEM": "0233",
+              "DESCRIPCION_MARCA": "POSTOBON",
+              "ID_PADRE_CLASIFICACION": "22",
+              "DES_CLASIF_PADRE": "BEBIDAS",
+              "ID_CLASIFICACION": "22D",
+              "DESCRIPCION_CLASIFICACION": "GASEOSAS",
+              "ID_UNIDAD_COMPRA": "Und",
+              "ID_BODEGA": "01",
+              "CANTIDAD": 1,
+              "PRECIO": 31008.40336134454,
+              "TOTAL_ITEM": 31008.4,
+              "TASA_DCTO_FIJO": 0,
+              "TOTAL_DCTO": 0,
+              "SUBTOTAL": 31008.4,
+              "TASA_IVA": 19,
+              "TOTAL_IVA": 5891.6,
+              "TOTAL": 36900,
+              "COSTO_KARDEX": 26470.69,
+              "TOTAL_COSTO": 26470.69,
+              "MARGEN": 14.63,
+              "MAGEN_GLOBAL": 14.63
+            },
+            {
+              "ID_ITEM": "302040",
+              "DESCRIPCION_ITEM": "GRANEL Q IDACAT GATO  X LB",
+              "ID_MARCA_ITEM": "0045",
+              "DESCRIPCION_MARCA": "Q IDACAT",
+              "ID_PADRE_CLASIFICACION": "03",
+              "DES_CLASIF_PADRE": "ALIMENTO PARA ANIMALES",
+              "ID_CLASIFICACION": "03C",
+              "DESCRIPCION_CLASIFICACION": "GATOS",
+              "ID_UNIDAD_COMPRA": "Und",
+              "ID_BODEGA": "01",
+              "CANTIDAD": 3,
+              "PRECIO": 4142.857142857143,
+              "TOTAL_ITEM": 12428.57,
+              "TASA_DCTO_FIJO": 0,
+              "TOTAL_DCTO": 0,
+              "SUBTOTAL": 12428.57,
+              "TASA_IVA": 5,
+              "TOTAL_IVA": 621.43,
+              "TOTAL": 13050,
+              "COSTO_KARDEX": 3648,
+              "TOTAL_COSTO": 10944,
+              "MARGEN": 11.94,
+              "MAGEN_GLOBAL": 11.94
+            },
+            {
+              "ID_ITEM": "2304277",
+              "DESCRIPCION_ITEM": "PANELIN PAQ X 8 UND",
+              "ID_MARCA_ITEM": "0125",
+              "DESCRIPCION_MARCA": "ECONOMICO",
+              "ID_PADRE_CLASIFICACION": "23",
+              "DES_CLASIF_PADRE": "GRANOS",
+              "ID_CLASIFICACION": "23D",
+              "DESCRIPCION_CLASIFICACION": "OTROS GRANOS",
+              "ID_UNIDAD_COMPRA": "Und",
+              "ID_BODEGA": "01",
+              "CANTIDAD": 4,
+              "PRECIO": 4350,
+              "TOTAL_ITEM": 17400,
+              "TASA_DCTO_FIJO": 0,
+              "TOTAL_DCTO": 0,
+              "SUBTOTAL": 17400,
+              "TASA_IVA": 0,
+              "TOTAL_IVA": 0,
+              "TOTAL": 17400,
+              "COSTO_KARDEX": 3875,
+              "TOTAL_COSTO": 15500,
+              "MARGEN": 10.92,
+              "MAGEN_GLOBAL": 10.92
+            },
+            {
+              "ID_ITEM": "2304099",
+              "DESCRIPCION_ITEM": "PANELA LOS PAISAS  X UND PACA X 48 UND",
+              "ID_MARCA_ITEM": "0125",
+              "DESCRIPCION_MARCA": "ECONOMICO",
+              "ID_PADRE_CLASIFICACION": "23",
+              "DES_CLASIF_PADRE": "GRANOS",
+              "ID_CLASIFICACION": "23D",
+              "DESCRIPCION_CLASIFICACION": "OTROS GRANOS",
+              "ID_UNIDAD_COMPRA": "Und",
+              "ID_BODEGA": "01",
+              "CANTIDAD": 6,
+              "PRECIO": 1831.25,
+              "TOTAL_ITEM": 10987.5,
+              "TASA_DCTO_FIJO": 0,
+              "TOTAL_DCTO": 0,
+              "SUBTOTAL": 10987.5,
+              "TASA_IVA": 0,
+              "TOTAL_IVA": 0,
+              "TOTAL": 10987.5,
+              "COSTO_KARDEX": 1729.17,
+              "TOTAL_COSTO": 10375.02,
+              "MARGEN": 5.57,
+              "MAGEN_GLOBAL": 5.57
+            }
+          ]
+        }
+      },
+      "cliente": {
+        "customer": {
+          "idTercero": "1",
+          "dv": "",
+          "nombre": "REMISION  COMERCIAL ",
+          "tipo_empresa": "PN",
+          "sucursales": [
+            {
+              "ID_SUCURSAL_TERCERO": 1,
+              "FECHA_CREACION": "06/09/2018",
+              "E_MAIL": "",
+              "NOMBRE_SUCURSAL": "REMISION  COMERCIAL ",
+              "TELEFONO": "",
+              "TELEFONO_CELULAR": "",
+              "DIRECCION": "SN",
+              "ID_CIUDAD": "76520",
+              "CLIENTE": "SI",
+              "PROVEEDOR": "NO"
+            }
+          ],
+          "contactos": []
+        }
+      }
+    }
+  },
+  {
+    "db": "02",
+    "muestras": {}
+  }
+]

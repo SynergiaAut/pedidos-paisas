@@ -121,6 +121,154 @@ export interface CrmInvoice {
     total: number;
 }
 
+export interface CrmInvoiceItemRaw {
+    ID_ITEM: string;
+    DESCRIPCION_ITEM: string;
+    ID_MARCA_ITEM?: string;
+    DESCRIPCION_MARCA?: string;
+    ID_PADRE_CLASIFICACION?: string;
+    DES_CLASIF_PADRE?: string;
+    ID_CLASIFICACION?: string;
+    DESCRIPCION_CLASIFICACION?: string;
+    ID_UNIDAD_COMPRA?: string;
+    ID_BODEGA: string | null;
+    CANTIDAD: number;
+    PRECIO: number;
+    TOTAL_ITEM: number;
+    TASA_DCTO_FIJO?: number;
+    TOTAL_DCTO?: number;
+    SUBTOTAL?: number;
+    TASA_IVA?: number;
+    TOTAL_IVA?: number;
+    TOTAL?: number;
+    COSTO_KARDEX?: number;
+    TOTAL_COSTO?: number;
+    MARGEN?: number;
+}
+
+export interface CrmInvoiceRaw {
+    FECHA: string;
+    ID_TIPO_DOC: string;
+    NUMERO: number;
+    FECHA_DESPACHO?: string;
+    ID_TERCERO: number | string;
+    ID_SUCURSAL_TERCERO?: number;
+    NOMBRE_TERCERO: string;
+    DIRECCION_TERCERO?: string;
+    E_MAIL_TERCERO?: string;
+    ID_VENDEDOR: number;
+    NOMBRE_VENDEDOR: string;
+    ID_ZONA?: string;
+    DESCRIPCION_ZONA?: string | null;
+    ID_DESTINO?: string;
+    DESCRIPCION_DESTINO?: string;
+    ID_PAIS?: string;
+    ID_DEPTO?: string;
+    ID_CIUDAD?: string;
+    DIRECCION?: string;
+    TELEFONO?: string;
+    NOMBRE_PAIS_CLIENTE?: string;
+    NOMBRE_DEPTO_CLIENTE?: string;
+    NOMBRE_CIUDAD_CLIENTE?: string;
+    items?: CrmInvoiceItemRaw[];
+}
+
+export interface CrmInvoiceItemNormalized {
+    sku: string;
+    descripcion: string;
+    bodega: string | null;
+    cantidad: number;
+    precio: number;
+    total: number;
+    costo_kardex: number;
+    margen: number;
+}
+
+export interface CrmInvoiceNormalized {
+    db_source: DbSource;
+    tipodoc: string;
+    numero: string;
+    fecha: string;
+    id_tercero: string;
+    nombre_tercero: string;
+    id_vendedor: number;
+    nombre_vendedor: string;
+    direccion: string;
+    telefono: string;
+    total: number;
+    items: CrmInvoiceItemNormalized[];
+    raw: CrmInvoiceRaw;
+}
+
+export function repairMojibake(str: string | null | undefined): string {
+    if (!str) return '';
+    if (!str.includes('Ã') && !str.includes('Â')) return str;
+    let result = str;
+    const replacements: [RegExp, string][] = [
+        [/Ã'/g, 'Ñ'],
+        [/Ã\u0091/g, 'Ñ'],
+        [/Ã‘/g, 'Ñ'],
+        [/Ã±/g, 'ñ'],
+        [/Ã¡/g, 'á'],
+        [/Ã©/g, 'é'],
+        [/Ã­/g, 'í'],
+        [/Ã\u00ad/g, 'í'],
+        [/Ã³/g, 'ó'],
+        [/Ãº/g, 'ú'],
+        [/Ã\u0081/g, 'Á'],
+        [/Ã\u0089/g, 'É'],
+        [/Ã\u008d/g, 'Í'],
+        [/Ã\u0093/g, 'Ó'],
+        [/Ã\u009a/g, 'Ú'],
+        [/Ã /g, 'Á'],
+        [/Ã‰/g, 'É'],
+        [/Ã /g, 'Í'],
+        [/Ã“/g, 'Ó'],
+        [/Ãš/g, 'Ú'],
+        [/Â¿/g, '¿'],
+        [/Â¡/g, '¡'],
+        [/Ã¼/g, 'ü'],
+        [/Ãœ/g, 'Ü']
+    ];
+    for (const [pattern, replacement] of replacements) {
+        result = result.replace(pattern, replacement);
+    }
+    return result;
+}
+
+export function normalizeInvoice(raw: CrmInvoiceRaw, db_source: DbSource): CrmInvoiceNormalized {
+    const items = Array.isArray(raw.items) ? raw.items : [];
+    
+    const normalizedItems: CrmInvoiceItemNormalized[] = items.map(item => ({
+        sku: item.ID_ITEM,
+        descripcion: repairMojibake((item.DESCRIPCION_ITEM ?? '').trim()),
+        bodega: item.ID_BODEGA || null,
+        cantidad: item.CANTIDAD ?? 0,
+        precio: item.PRECIO ?? 0,
+        total: item.TOTAL ?? item.TOTAL_ITEM ?? 0,
+        costo_kardex: item.COSTO_KARDEX ?? 0,
+        margen: item.MARGEN ?? 0,
+    }));
+
+    const calculatedTotal = normalizedItems.reduce((sum, item) => sum + item.total, 0);
+
+    return {
+        db_source,
+        tipodoc: raw.ID_TIPO_DOC,
+        numero: String(raw.NUMERO),
+        fecha: raw.FECHA,
+        id_tercero: String(raw.ID_TERCERO),
+        nombre_tercero: repairMojibake((raw.NOMBRE_TERCERO ?? '').trim()),
+        id_vendedor: raw.ID_VENDEDOR,
+        nombre_vendedor: repairMojibake((raw.NOMBRE_VENDEDOR ?? '').trim()),
+        direccion: repairMojibake(((raw.DIRECCION || raw.DIRECCION_TERCERO) ?? '').trim()),
+        telefono: (raw.TELEFONO ?? '').trim(),
+        total: calculatedTotal,
+        items: normalizedItems,
+        raw
+    };
+}
+
 export interface DbHealth {
     db_source: DbSource;
     label: string;
@@ -164,8 +312,11 @@ class FlexCrmClient {
     private token: string | null = null;
     private tokenExpiry = 0; // timestamp ms
     private loginInfo: { empresa?: string; nit?: string } = {};
+    readonly db: DbSource;
 
-    constructor(public readonly db: DbSource) {}
+    constructor(db: DbSource) {
+        this.db = db;
+    }
 
     /**
      * Obtiene el token activo o hace login si expiro.
@@ -211,12 +362,14 @@ class FlexCrmClient {
      * U+FFFD, re-decodificamos como windows-1252. Si Ricardo corrige el charset,
      * este fallback deja de activarse solo.
      */
-    async post<T>(path: string, body: object = {}): Promise<T> {
+    async post<T>(path: string, body: object = {}, timeoutMs?: number): Promise<T> {
         const token = await this.getToken();
+        const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined;
         const res = await fetch(`${BASE_URL}${path}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', token },
             body: JSON.stringify(body),
+            signal,
         });
 
         const buffer = await res.arrayBuffer();
@@ -302,6 +455,25 @@ class FlexCrmClient {
         return data.invoices;
     }
 
+    async getInvoices(fechainicial: string, fechafinal: string): Promise<CrmInvoiceNormalized[]> {
+        const data = await this.post<{ invoices: { factura: CrmInvoiceRaw }[] }>(
+            '/crm/all/invoice',
+            { fechainicial, fechafinal },
+            15000
+        );
+        return (data.invoices ?? []).map((i) => normalizeInvoice(i.factura, this.db));
+    }
+
+    async getOneInvoice(tipodoc: string, numero: string): Promise<CrmInvoiceNormalized | null> {
+        const data = await this.post<{ invoices: { factura: CrmInvoiceRaw }[] }>(
+            '/crm/one/invoice',
+            { tipodoc, numero },
+            15000
+        );
+        const raw = data.invoices?.[0]?.factura;
+        return raw ? normalizeInvoice(raw, this.db) : null;
+    }
+
     // ---------- Cartera ----------
     async getDebitsByCustomer(cliente: string, fechafinal: string): Promise<CrmDebit[]> {
         const data = await this.post<{ debits: CrmDebit[] }>('/crm/one/debit', { cliente, fechafinal });
@@ -368,3 +540,15 @@ export const getOrdersByDateRange = (fi: string, ff: string) => getFlexCrm('01')
 export const getOneOrder = (tipodoc: string, numero: string) => getFlexCrm('01').getOneOrder(tipodoc, numero);
 export const getInvoicesByDateRange = (fi: string, ff: string) => getFlexCrm('01').getInvoicesByDateRange(fi, ff);
 export const getDebitsByCustomer = (cliente: string, ff: string) => getFlexCrm('01').getDebitsByCustomer(cliente, ff);
+
+export function hasCredentials(db: DbSource): boolean {
+    const correo =
+        process.env[`FLEX_CRM_EMAIL_${db}`] ||
+        (db === '01' ? process.env.FLEX_CRM_EMAIL : undefined) ||
+        '';
+    const clave =
+        process.env[`FLEX_CRM_CLAVE_${db}`] ||
+        (db === '01' ? process.env.FLEX_CRM_CLAVE : undefined) ||
+        '';
+    return !!(correo && correo.trim() && clave && clave.trim());
+}

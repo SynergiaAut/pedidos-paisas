@@ -58,3 +58,7 @@ id_tunnel*
 # Material de trabajo no-código
 Chat de WhatsApp*/
 *.opus
+
+# Propuestas y Diseño (no-código)
+propuestas/
+*diseño formato de propuesta*/
