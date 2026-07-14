@@ -101,9 +101,9 @@ export default function PrintOrderPage({ params }: { params: Promise<{ id: strin
 
                     {/* Header */}
                     <div className="text-center mb-3">
-                        <h1 className="text-lg font-bold uppercase mb-1">Granero Los Paisas</h1>
-                        <p className="text-[10px]">NIT: 123.456.789-0</p>
-                        <p className="text-[10px]">Calle Principal #10-20</p>
+                        <h1 className="text-sm font-bold uppercase mb-0.5">{process.env.NEXT_PUBLIC_EMPRESA_NOMBRE || 'DEPOSITO DE GRANOS Y LICORES LOS PAISAS SAS'}</h1>
+                        <p className="text-[10px]">NIT: {process.env.NEXT_PUBLIC_EMPRESA_NIT || '901.107.512-4'}</p>
+                        <p className="text-[10px]">{process.env.NEXT_PUBLIC_EMPRESA_DIRECCION || 'Palmira, Valle del Cauca'}</p>
                         <p className="text-[10px] mt-1">{new Date(order.created_at).toLocaleString()}</p>
                     </div>
 
@@ -131,6 +131,17 @@ export default function PrintOrderPage({ params }: { params: Promise<{ id: strin
                                 <span>{order.delivery_drivers.full_name.split(' ')[0]}</span>
                             </div>
                         )}
+                        {order.invoices_data && Array.isArray(order.invoices_data) && order.invoices_data.length > 0 && (
+                            <div className="border-t border-dashed border-black/35 pt-1 mt-1 space-y-0.5 text-[10px]">
+                                <span className="font-bold">Facturas Relacionadas:</span>
+                                {order.invoices_data.map((inv: { code: string; value: string }, idx: number) => (
+                                    <div key={idx} className="flex justify-between font-mono">
+                                        <span>{inv.code}</span>
+                                        <span>{formatMoney(Number(inv.value))}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="border-b border-dashed border-black my-2"></div>
@@ -151,6 +162,14 @@ export default function PrintOrderPage({ params }: { params: Promise<{ id: strin
                                 </span>
                             </p>
                         )}
+
+                        {/* Observaciones del vendedor (se elimina el prefijo [ENTREGA EN: ...]) */}
+                        {(() => {
+                            const obs = order.observations?.replace(/\[ENTREGA EN: .*?\]\s*/, '').trim();
+                            return obs ? (
+                                <p><span className="font-bold">Observaciones:</span> {obs}</p>
+                            ) : null;
+                        })()}
                     </div>
 
                     <div className="border-b border-dashed border-black my-2"></div>
@@ -164,14 +183,18 @@ export default function PrintOrderPage({ params }: { params: Promise<{ id: strin
                         </div>
                         {order.products && Array.isArray(order.products) && order.products.length > 0 ? (
                             <div className="space-y-1">
-                                {order.products.map((p: any, i: number) => (
+                                {order.products.map((p: { qty: number; name: string; price: number; total?: number; type?: string }, i: number) => (
                                     <div key={i} className="flex">
                                         <span className="w-8">{p.qty}</span>
                                         <div className="flex-1">
                                             <span>{p.name}</span>
-                                            {/* Show unit price if needed, simplified for ticket */}
+                                            {p.type && (
+                                                <span className="text-[9px] border border-black/40 rounded px-0.5 ml-1 font-bold font-mono">
+                                                    {p.type}
+                                                </span>
+                                            )}
                                         </div>
-                                        <span className="w-16 text-right">{formatMoney(p.price * p.qty)}</span>
+                                        <span className="w-16 text-right">{formatMoney(p.total ?? (p.price * p.qty))}</span>
                                     </div>
                                 ))}
                             </div>
@@ -188,17 +211,22 @@ export default function PrintOrderPage({ params }: { params: Promise<{ id: strin
                         <span>{formatMoney(order.total_value)}</span>
                     </div>
 
-                    {/* Observations (if not address) */}
-                    {order.observations && !order.observations.startsWith('[ENTREGA EN:') && (
-                        <div className="mt-3 text-[10px] italic border p-1 rounded border-black/20">
-                            Nota: {order.observations}
-                        </div>
-                    )}
+                    {/* Observations (clean free-text observations, both DOMICILIO and TIENDA) */}
+                    {(() => {
+                        const cleanObs = (order.observations || '').replace(/\[ENTREGA EN:.*?\]/g, '').trim();
+                        if (!cleanObs) return null;
+                        return (
+                            <div className="mt-3 text-[10px] italic border p-1.5 rounded border-black/20 font-mono">
+                                <span className="font-bold">Observaciones:</span><br />
+                                {cleanObs}
+                            </div>
+                        );
+                    })()}
 
                     {/* Footer */}
                     <div className="text-center mt-6 mb-8 text-[10px]">
                         <p>¡Gracias por su compra!</p>
-                        <p className="mt-1">Sistema desarrollado por<br />AntiGravity</p>
+                        <p className="mt-1">Sistema desarrollado por<br />Synerg-IA Automation</p>
                     </div>
                 </div>
             </div>
