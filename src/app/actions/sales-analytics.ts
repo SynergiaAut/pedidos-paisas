@@ -353,3 +353,127 @@ export async function getProductDetailData(sku: string): Promise<ProductDetailDa
         countsHistory
     };
 }
+
+// ==========================================
+// INTRADAY SNAPSHOTS READS (Fase S4)
+// ==========================================
+
+export interface IntradayPoint {
+    hora: string;
+    captured_at: string;
+    venta_01: number;
+    unidades_01: number;
+    delta_venta_01: number;
+    delta_unidades_01: number;
+    venta_02: number;
+    unidades_02: number;
+    delta_venta_02: number;
+    delta_unidades_02: number;
+    venta_all: number;
+    unidades_all: number;
+    delta_venta_all: number;
+    delta_unidades_all: number;
+}
+
+export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoint[] | { error: string }> {
+    const isAdmin = await verifyAdmin();
+    if (!isAdmin) {
+        return { error: 'Acceso denegado. Se requieren permisos de administrador.' };
+    }
+
+    const supabase = await createClient();
+    const targetDay = diaStr || new Date().toISOString().split('T')[0];
+
+    // Consultar todos los snapshots de ese día en orden cronológico
+    const { data: snapshots, error: snapError } = await supabase
+        .from('sales_snapshots')
+        .select('*')
+        .eq('dia', targetDay)
+        .order('captured_at', { ascending: true });
+
+    if (snapError) {
+        return { error: `Error al consultar snapshots: ${snapError.message}` };
+    }
+
+    const list = snapshots || [];
+    
+    // Agrupar por la marca de tiempo exacta (captured_at)
+    const timeGroups: Record<string, any[]> = {};
+    for (const snap of list) {
+        const time = snap.captured_at;
+        if (!timeGroups[time]) {
+            timeGroups[time] = [];
+        }
+        timeGroups[time].push(snap);
+    }
+
+    // Ordenar las marcas de tiempo cronológicamente
+    const sortedTimes = Object.keys(timeGroups).sort();
+    
+    const points: IntradayPoint[] = [];
+    
+    // Variables para guardar el acumulado anterior por base y calcular el delta
+    let prev_01 = { venta: 0, unidades: 0 };
+    let prev_02 = { venta: 0, unidades: 0 };
+    let prev_all = { venta: 0, unidades: 0 };
+
+    for (const time of sortedTimes) {
+        const snaps = timeGroups[time];
+        
+        const snap_01 = snaps.find(s => s.db_source === '01') || { venta: 0, unidades: 0 };
+        const snap_02 = snaps.find(s => s.db_source === '02') || { venta: 0, unidades: 0 };
+        const snap_all = snaps.find(s => s.db_source === 'ALL') || { venta: 0, unidades: 0 };
+
+        // Convertir captured_at a hora local legible "HH:MM"
+        const dateObj = new Date(time);
+        const horaStr = dateObj.toLocaleTimeString('es-CO', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+
+        const v01 = Number(snap_01.venta) || 0;
+        const u01 = Number(snap_01.unidades) || 0;
+        
+        const v02 = Number(snap_02.venta) || 0;
+        const u02 = Number(snap_02.unidades) || 0;
+        
+        const vall = Number(snap_all.venta) || 0;
+        const uall = Number(snap_all.unidades) || 0;
+
+        // Calcular deltas
+        const delta_v01 = v01 - prev_01.venta;
+        const delta_u01 = u01 - prev_01.unidades;
+        
+        const delta_v02 = v02 - prev_02.venta;
+        const delta_u02 = u02 - prev_02.unidades;
+        
+        const delta_vall = vall - prev_all.venta;
+        const delta_uall = uall - prev_all.unidades;
+
+        points.push({
+            hora: horaStr,
+            captured_at: time,
+            venta_01: v01,
+            unidades_01: u01,
+            delta_venta_01: delta_v01,
+            delta_unidades_01: delta_u01,
+            venta_02: v02,
+            unidades_02: u02,
+            delta_venta_02: delta_v02,
+            delta_unidades_02: delta_u02,
+            venta_all: vall,
+            unidades_all: uall,
+            delta_venta_all: delta_vall,
+            delta_unidades_all: delta_uall
+        });
+
+        // Actualizar anteriores
+        prev_01 = { venta: v01, unidades: u01 };
+        prev_02 = { venta: v02, unidades: u02 };
+        prev_all = { venta: vall, unidades: uall };
+    }
+
+    return points;
+}
+

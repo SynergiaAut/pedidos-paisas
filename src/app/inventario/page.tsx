@@ -12,6 +12,7 @@ import {
   Plus, 
   ArrowUpRight,
   ClipboardCheck,
+  Boxes,
   X
 } from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
@@ -175,13 +176,20 @@ export default function InventarioPage() {
       )}
 
       {/* Stats Grid (datos reales de inventory_master) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatsCard
           title="Total Productos"
           value={stats ? stats.totalProducts.toLocaleString('es-CO') : '…'}
           subtitle={stats ? `+ ${stats.totalServices.toLocaleString('es-CO')} servicios/fletes (${(stats.totalProducts + stats.totalServices).toLocaleString('es-CO')} ítems en el ERP)` : undefined}
           icon={Package}
           color="bg-blue-500/20"
+        />
+        <StatsCard
+          title="Unidades en Stock"
+          value={stats ? Math.round(stats.stockUnits).toLocaleString('es-CO') : '…'}
+          subtitle={stats ? `BD1: ${Math.round(stats.stockUnitsByDb['01'] ?? 0).toLocaleString('es-CO')} · BD2: ${Math.round(stats.stockUnitsByDb['02'] ?? 0).toLocaleString('es-CO')}` : undefined}
+          icon={Boxes}
+          color="bg-cyan-500/20"
         />
         <StatsCard
           title="Descuadres Detectados"

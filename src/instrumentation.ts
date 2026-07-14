@@ -57,5 +57,39 @@ export async function register() {
                 console.error('[Instrumentation] Error al registrar cron de ventas:', err);
             }
         }
+
+        // 3. Cron de Snapshots Intradía (Fase S3)
+        if (!globalCron.salesSnapshotCronRegistered && !isBuild) {
+            globalCron.salesSnapshotCronRegistered = true;
+            
+            console.log('[Instrumentation] Inicializando cron de snapshots de ventas (intradía)...');
+            try {
+                const cron = await import('node-cron');
+                const { runSalesSync, runSalesSnapshot } = await import('./lib/sales-sync');
+
+                // Programar cada 5 minutos: */5 * * * *
+                cron.schedule('*/5 * * * *', async () => {
+                    const started = new Date().toISOString();
+                    console.log(`[Cron:SalesSnapshot] Iniciando tarea de snapshots intradía en ${started}...`);
+                    try {
+                        const hoy = new Date();
+                        // 1. Refrescar ventas de hoy
+                        console.log('[Cron:SalesSnapshot] Refrescando ventas de hoy...');
+                        const syncSummary = await runSalesSync('all', hoy, hoy);
+                        console.log(`[Cron:SalesSnapshot] Sync de hoy completado: ${syncSummary.status} (${syncSummary.duration_ms}ms)`);
+                        
+                        // 2. Tomar el snapshot acumulado del día
+                        const snapshotResult = await runSalesSnapshot();
+                        console.log(`[Cron:SalesSnapshot] Captura de snapshot: ${snapshotResult.success ? 'OK' : 'FALLÓ'}`);
+                    } catch (err) {
+                        console.error('[Cron:SalesSnapshot] Error crítico en la tarea de snapshots:', err);
+                    }
+                });
+                
+                console.log('[Instrumentation] Cron para snapshots de ventas registrado (cada 5 minutos: */5 * * * *).');
+            } catch (err) {
+                console.error('[Instrumentation] Error al registrar cron de snapshots:', err);
+            }
+        }
     }
 }

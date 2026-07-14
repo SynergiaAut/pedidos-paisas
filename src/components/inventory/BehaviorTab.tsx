@@ -4,8 +4,10 @@ import React, { useEffect, useState } from 'react';
 import { 
     getProductsBehaviorData, 
     getProductDetailData, 
+    getIntradaySnapshots,
     BehaviorStats, 
-    ProductDetailData 
+    ProductDetailData,
+    IntradayPoint
 } from '@/app/actions/sales-analytics';
 import { 
     TrendingUp, 
@@ -51,6 +53,42 @@ export function BehaviorTab() {
     const [searchingDetail, setSearchingDetail] = useState<boolean>(false);
     const [productDetail, setProductDetail] = useState<ProductDetailData | null>(null);
     const [detailError, setDetailError] = useState<string | null>(null);
+
+    // Estados para snapshots intradía (Fase S5)
+    const [intradayDate, setIntradayDate] = useState<string>(() => {
+        // Inicializar con la fecha de hoy en huso horario local (formato YYYY-MM-DD)
+        const d = new Date();
+        const offset = d.getTimezoneOffset();
+        const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+        return localDate.toISOString().split('T')[0];
+    });
+    const [intradayData, setIntradayData] = useState<IntradayPoint[]>([]);
+    const [loadingIntraday, setLoadingIntraday] = useState<boolean>(true);
+    const [intradayError, setIntradayError] = useState<string | null>(null);
+    const [activeIntradayDb, setActiveIntradayDb] = useState<'01' | '02' | 'all'>('all');
+    const [intradayViewMode, setIntradayViewMode] = useState<'cumulative' | 'delta'>('cumulative');
+
+    const loadIntradayData = async () => {
+        setLoadingIntraday(true);
+        setIntradayError(null);
+        try {
+            const result = await getIntradaySnapshots(intradayDate);
+            if ('error' in result) {
+                setIntradayError(result.error);
+                setIntradayData([]);
+            } else {
+                setIntradayData(result);
+            }
+        } catch (e) {
+            setIntradayError('Error al recuperar datos intradía.');
+        } finally {
+            setLoadingIntraday(false);
+        }
+    };
+
+    useEffect(() => {
+        loadIntradayData();
+    }, [intradayDate]);
 
     const loadBehaviorData = async () => {
         setLoading(true);
@@ -174,6 +212,140 @@ export function BehaviorTab() {
                 </div>
             ) : stats ? (
                 <div className="space-y-8">
+                    {/* Gráfico de Ventas Intradía por Snapshots (Fase S5) */}
+                    <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md space-y-6">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-emerald-400 animate-pulse" />
+                                    Comportamiento de Ventas Intradía
+                                </h3>
+                                <p className="text-gray-400 text-xs mt-1">Monitoreo en tiempo real de facturación acumulada y deltas por franja de 5 minutos.</p>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                                <input 
+                                    type="date" 
+                                    value={intradayDate}
+                                    max={new Date().toISOString().split('T')[0]}
+                                    onChange={(e) => setIntradayDate(e.target.value)}
+                                    className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
+                                />
+                                
+                                <select 
+                                    value={activeIntradayDb}
+                                    onChange={(e) => setActiveIntradayDb(e.target.value as any)}
+                                    className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
+                                >
+                                    <option value="all">General (Consolidado)</option>
+                                    <option value="01">BD1 (Los Paisas)</option>
+                                    <option value="02">BD2 (Paisas Fiscal)</option>
+                                </select>
+
+                                <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
+                                    <button 
+                                        onClick={() => setIntradayViewMode('cumulative')}
+                                        className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                            intradayViewMode === 'cumulative' 
+                                                ? 'bg-emerald-600 text-white' 
+                                                : 'text-gray-400 hover:text-white'
+                                        }`}
+                                    >
+                                        Acumulado
+                                    </button>
+                                    <button 
+                                        onClick={() => setIntradayViewMode('delta')}
+                                        className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                            intradayViewMode === 'delta' 
+                                                ? 'bg-emerald-600 text-white' 
+                                                : 'text-gray-400 hover:text-white'
+                                        }`}
+                                    >
+                                        Franjas
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {loadingIntraday ? (
+                            <div className="h-64 flex flex-col items-center justify-center text-gray-500 gap-2">
+                                <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                                <span className="text-xs">Cargando serie intradía...</span>
+                            </div>
+                        ) : intradayError ? (
+                            <div className="h-64 flex items-center justify-center text-red-400 text-xs bg-red-500/5 rounded-2xl border border-red-500/10">
+                                {intradayError}
+                            </div>
+                        ) : intradayData.length === 0 ? (
+                            <div className="h-64 flex flex-col items-center justify-center text-gray-500 text-xs bg-white/5 border border-white/5 rounded-2xl p-6 text-center gap-1">
+                                <Info className="w-5 h-5 text-gray-500" />
+                                <span className="font-bold text-gray-400 mt-1">Sin datos de snapshots para esta fecha</span>
+                                <span className="text-[10px] text-gray-600 max-w-xs">Los snapshots se capturan automáticamente cada 5 minutos durante la jornada de ventas.</span>
+                            </div>
+                        ) : (
+                            <div className="h-72 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    {intradayViewMode === 'cumulative' ? (
+                                        <AreaChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="colorIntraday" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor={
+                                                        activeIntradayDb === '01' ? '#10b981' : activeIntradayDb === '02' ? '#3b82f6' : '#a855f7'
+                                                    } stopOpacity={0.2}/>
+                                                    <stop offset="95%" stopColor={
+                                                        activeIntradayDb === '01' ? '#10b981' : activeIntradayDb === '02' ? '#3b82f6' : '#a855f7'
+                                                    } stopOpacity={0}/>
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                            <XAxis dataKey="hora" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                                            <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                                            <Tooltip 
+                                                contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                                                labelClassName="text-gray-400 text-xs"
+                                                formatter={(value: any) => [formatCOP(Number(value)), 'Venta Acumulada']}
+                                            />
+                                            <Area 
+                                                type="monotone" 
+                                                dataKey={
+                                                    activeIntradayDb === '01' ? 'venta_01' : activeIntradayDb === '02' ? 'venta_02' : 'venta_all'
+                                                } 
+                                                stroke={
+                                                    activeIntradayDb === '01' ? '#10b981' : activeIntradayDb === '02' ? '#3b82f6' : '#a855f7'
+                                                } 
+                                                strokeWidth={2.5} 
+                                                fillOpacity={1} 
+                                                fill="url(#colorIntraday)" 
+                                            />
+                                        </AreaChart>
+                                    ) : (
+                                        <LineChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                            <XAxis dataKey="hora" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                                            <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                                            <Tooltip 
+                                                contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                                                labelClassName="text-gray-400 text-xs"
+                                                formatter={(value: any) => [formatCOP(Number(value)), 'Venta Franja']}
+                                            />
+                                            <Line 
+                                                type="monotone" 
+                                                dataKey={
+                                                    activeIntradayDb === '01' ? 'delta_venta_01' : activeIntradayDb === '02' ? 'delta_venta_02' : 'delta_venta_all'
+                                                } 
+                                                stroke={
+                                                    activeIntradayDb === '01' ? '#10b981' : activeIntradayDb === '02' ? '#3b82f6' : '#a855f7'
+                                                } 
+                                                strokeWidth={2} 
+                                                dot={true} 
+                                            />
+                                        </LineChart>
+                                    )}
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+                    </div>
+
                     {/* KPIs Aggregated Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group">
