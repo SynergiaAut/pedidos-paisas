@@ -328,33 +328,33 @@ export function BehaviorTab() {
                         <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
                             <button 
                                 onClick={() => setPeriodDays(7)}
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                     periodDays === 7 
                                         ? 'bg-emerald-600 text-white font-bold' 
                                         : 'text-gray-400 hover:text-white'
                                 }`}
                             >
-                                7D
+                                Semana (7d)
                             </button>
                             <button 
                                 onClick={() => setPeriodDays(30)}
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                     periodDays === 30 
                                         ? 'bg-emerald-600 text-white font-bold' 
                                         : 'text-gray-400 hover:text-white'
                                 }`}
                             >
-                                30D
+                                Mes (30d)
                             </button>
                             <button 
                                 onClick={() => setPeriodDays(90)}
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                     periodDays === 90 
                                         ? 'bg-emerald-600 text-white font-bold' 
                                         : 'text-gray-400 hover:text-white'
                                 }`}
                             >
-                                90D
+                                Trimestre (90d)
                             </button>
                         </div>
 
