@@ -93,6 +93,22 @@ export async function runSalesSync(
     const activeDbs = dbs.filter(db => hasCredentials(db));
     const okCount = results.filter(r => !r.error && (r.lines_upserted >= 0 || !hasCredentials(r.db_source))).length;
     
+    // Refrescar la vista materializada si hubo cambios en los datos de ventas
+    const hasNewSales = results.some(r => r.lines_upserted > 0);
+    if (hasNewSales) {
+        console.log('[SyncVentas] Refrescando vista materializada mv_daily_sales_aggregation...');
+        try {
+            const { error: refreshError } = await supabase.rpc('refresh_sales_materialized_view');
+            if (refreshError) {
+                console.error('[SyncVentas] Error al refrescar vista materializada:', refreshError.message);
+            } else {
+                console.log('[SyncVentas] Vista materializada refrescada exitosamente.');
+            }
+        } catch (e) {
+            console.error('[SyncVentas] Error inesperado al refrescar vista materializada:', e);
+        }
+    }
+
     return {
         status: okCount === dbs.length ? 'success' : okCount > 0 ? 'partial' : 'error',
         duration_ms: Date.now() - started,
