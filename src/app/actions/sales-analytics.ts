@@ -402,70 +402,109 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
         timeGroups[horaStr].snaps.push(snap);
     }
 
-    // Ordenar las marcas de tiempo locales cronológicamente
-    const sortedTimes = Object.keys(timeGroups).sort();
+    // 1. Obtener la hora actual de Colombia para saber hasta dónde rellenar si es el día de hoy,
+    // o rellenar las 24 horas completas si es un día pasado.
+    const nowCol = new Date();
+    const colombiaOffset = -5 * 60; // en minutos
+    const utcTime = nowCol.getTime() + (nowCol.getTimezoneOffset() * 60 * 1000);
+    const colombiaTime = new Date(utcTime + (colombiaOffset * 60 * 1000));
     
+    // Determinar la fecha comercial de hoy
+    const hoyStr = getColombiaDateString();
+    const isToday = targetDay === hoyStr;
+
+    // Si es hoy, limitamos la serie hasta el minuto actual. Si es un día pasado, la pintamos hasta las 23:55.
+    let endHour = 23;
+    let endMinute = 55;
+    if (isToday) {
+        endHour = colombiaTime.getHours();
+        endMinute = colombiaTime.getMinutes();
+    }
+
+    // Generar todos los intervalos de 5 minutos desde las 00:00 hasta el límite determinado
+    const intervals: string[] = [];
+    for (let h = 0; h <= endHour; h++) {
+        const maxM = (h === endHour) ? endMinute : 59;
+        for (let m = 0; m <= maxM; m += 5) {
+            const hStr = String(h).padStart(2, '0');
+            const mStr = String(m).padStart(2, '0');
+            intervals.push(`${hStr}:${mStr}`);
+        }
+    }
+
+    // Asegurar que si el eje está vacío, al menos tenga el punto de las 00:00
+    if (intervals.length === 0) {
+        intervals.push('00:00');
+    }
+
     const points: IntradayPoint[] = [];
     
     // Variables para guardar el acumulado anterior por base y calcular el delta
+    let current_01 = { venta: 0, unidades: 0 };
+    let current_02 = { venta: 0, unidades: 0 };
+    let current_all = { venta: 0, unidades: 0 };
+
     let prev_01 = { venta: 0, unidades: 0 };
     let prev_02 = { venta: 0, unidades: 0 };
     let prev_all = { venta: 0, unidades: 0 };
 
-    for (const time of sortedTimes) {
+    for (const time of intervals) {
+        // ¿Hay snapshots registrados para esta hora exacta (HH:MM) en la base de datos?
         const group = timeGroups[time];
-        const snaps = group.snaps;
         
-        // Tomar el último snapshot disponible por cada base dentro de ese minuto
-        const snaps_01 = snaps.filter(s => s.db_source === '01');
-        const snap_01 = snaps_01[snaps_01.length - 1] || { venta: 0, unidades: 0 };
-        
-        const snaps_02 = snaps.filter(s => s.db_source === '02');
-        const snap_02 = snaps_02[snaps_02.length - 1] || { venta: 0, unidades: 0 };
-        
-        const snaps_all = snaps.filter(s => s.db_source === 'ALL');
-        const snap_all = snaps_all[snaps_all.length - 1] || { venta: 0, unidades: 0 };
+        if (group) {
+            const snaps = group.snaps;
+            
+            const snaps_01 = snaps.filter(s => s.db_source === '01');
+            if (snaps_01.length > 0) {
+                const s = snaps_01[snaps_01.length - 1];
+                current_01 = { venta: Number(s.venta) || 0, unidades: Number(s.unidades) || 0 };
+            }
+            
+            const snaps_02 = snaps.filter(s => s.db_source === '02');
+            if (snaps_02.length > 0) {
+                const s = snaps_02[snaps_02.length - 1];
+                current_02 = { venta: Number(s.venta) || 0, unidades: Number(s.unidades) || 0 };
+            }
+            
+            const snaps_all = snaps.filter(s => s.db_source === 'ALL');
+            if (snaps_all.length > 0) {
+                const s = snaps_all[snaps_all.length - 1];
+                current_all = { venta: Number(s.venta) || 0, unidades: Number(s.unidades) || 0 };
+            }
+        }
 
-        const v01 = Number(snap_01.venta) || 0;
-        const u01 = Number(snap_01.unidades) || 0;
+        // Calcular deltas (siempre >= 0)
+        const delta_v01 = Math.max(0, current_01.venta - prev_01.venta);
+        const delta_u01 = Math.max(0, current_01.unidades - prev_01.unidades);
         
-        const v02 = Number(snap_02.venta) || 0;
-        const u02 = Number(snap_02.unidades) || 0;
+        const delta_v02 = Math.max(0, current_02.venta - prev_02.venta);
+        const delta_u02 = Math.max(0, current_02.unidades - prev_02.unidades);
         
-        const vall = Number(snap_all.venta) || 0;
-        const uall = Number(snap_all.unidades) || 0;
-
-        // Calcular deltas
-        const delta_v01 = Math.max(0, v01 - prev_01.venta);
-        const delta_u01 = Math.max(0, u01 - prev_01.unidades);
-        
-        const delta_v02 = Math.max(0, v02 - prev_02.venta);
-        const delta_u02 = Math.max(0, u02 - prev_02.unidades);
-        
-        const delta_vall = Math.max(0, vall - prev_all.venta);
-        const delta_uall = Math.max(0, uall - prev_all.unidades);
+        const delta_vall = Math.max(0, current_all.venta - prev_all.venta);
+        const delta_uall = Math.max(0, current_all.unidades - prev_all.unidades);
 
         points.push({
             hora: time,
-            captured_at: group.rawTime,
-            venta_01: v01,
-            unidades_01: u01,
+            captured_at: group ? group.rawTime : `${targetDay}T${time}:00Z`,
+            venta_01: current_01.venta,
+            unidades_01: current_01.unidades,
             delta_venta_01: delta_v01,
             delta_unidades_01: delta_u01,
-            venta_02: v02,
-            unidades_02: u02,
+            venta_02: current_02.venta,
+            unidades_02: current_02.unidades,
             delta_venta_02: delta_v02,
             delta_unidades_02: delta_u02,
-            venta_all: vall,
-            unidades_all: uall,
+            venta_all: current_all.venta,
+            unidades_all: current_all.unidades,
             delta_venta_all: delta_vall,
             delta_unidades_all: delta_uall
         });
 
         // Actualizar anteriores
-        prev_01 = { venta: v01, unidades: u01 };
-        prev_02 = { venta: v02, unidades: u02 };
-        prev_all = { venta: vall, unidades: uall };
+        prev_01 = { ...current_01 };
+        prev_02 = { ...current_02 };
+        prev_all = { ...current_all };
     }
 
     return points;
