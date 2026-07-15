@@ -385,17 +385,24 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
 
     const list = snapshots || [];
     
-    // Agrupar por la marca de tiempo exacta (captured_at)
-    const timeGroups: Record<string, any[]> = {};
+    // Agrupar por la hora local formateada "HH:MM" de Colombia
+    const timeGroups: Record<string, { snaps: any[]; rawTime: string }> = {};
     for (const snap of list) {
-        const time = snap.captured_at;
-        if (!timeGroups[time]) {
-            timeGroups[time] = [];
+        const dateObj = new Date(snap.captured_at);
+        const horaStr = dateObj.toLocaleTimeString('es-CO', {
+            timeZone: 'America/Bogota',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+        
+        if (!timeGroups[horaStr]) {
+            timeGroups[horaStr] = { snaps: [], rawTime: snap.captured_at };
         }
-        timeGroups[time].push(snap);
+        timeGroups[horaStr].snaps.push(snap);
     }
 
-    // Ordenar las marcas de tiempo cronológicamente
+    // Ordenar las marcas de tiempo locales cronológicamente
     const sortedTimes = Object.keys(timeGroups).sort();
     
     const points: IntradayPoint[] = [];
@@ -406,20 +413,18 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
     let prev_all = { venta: 0, unidades: 0 };
 
     for (const time of sortedTimes) {
-        const snaps = timeGroups[time];
+        const group = timeGroups[time];
+        const snaps = group.snaps;
         
-        const snap_01 = snaps.find(s => s.db_source === '01') || { venta: 0, unidades: 0 };
-        const snap_02 = snaps.find(s => s.db_source === '02') || { venta: 0, unidades: 0 };
-        const snap_all = snaps.find(s => s.db_source === 'ALL') || { venta: 0, unidades: 0 };
-
-        // Convertir captured_at a hora local legible "HH:MM" de Colombia (UTC-5)
-        const dateObj = new Date(time);
-        const horaStr = dateObj.toLocaleTimeString('es-CO', {
-            timeZone: 'America/Bogota',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-        });
+        // Tomar el último snapshot disponible por cada base dentro de ese minuto
+        const snaps_01 = snaps.filter(s => s.db_source === '01');
+        const snap_01 = snaps_01[snaps_01.length - 1] || { venta: 0, unidades: 0 };
+        
+        const snaps_02 = snaps.filter(s => s.db_source === '02');
+        const snap_02 = snaps_02[snaps_02.length - 1] || { venta: 0, unidades: 0 };
+        
+        const snaps_all = snaps.filter(s => s.db_source === 'ALL');
+        const snap_all = snaps_all[snaps_all.length - 1] || { venta: 0, unidades: 0 };
 
         const v01 = Number(snap_01.venta) || 0;
         const u01 = Number(snap_01.unidades) || 0;
@@ -431,18 +436,18 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
         const uall = Number(snap_all.unidades) || 0;
 
         // Calcular deltas
-        const delta_v01 = v01 - prev_01.venta;
-        const delta_u01 = u01 - prev_01.unidades;
+        const delta_v01 = Math.max(0, v01 - prev_01.venta);
+        const delta_u01 = Math.max(0, u01 - prev_01.unidades);
         
-        const delta_v02 = v02 - prev_02.venta;
-        const delta_u02 = u02 - prev_02.unidades;
+        const delta_v02 = Math.max(0, v02 - prev_02.venta);
+        const delta_u02 = Math.max(0, u02 - prev_02.unidades);
         
-        const delta_vall = vall - prev_all.venta;
-        const delta_uall = uall - prev_all.unidades;
+        const delta_vall = Math.max(0, vall - prev_all.venta);
+        const delta_uall = Math.max(0, uall - prev_all.unidades);
 
         points.push({
-            hora: horaStr,
-            captured_at: time,
+            hora: time,
+            captured_at: group.rawTime,
             venta_01: v01,
             unidades_01: u01,
             delta_venta_01: delta_v01,

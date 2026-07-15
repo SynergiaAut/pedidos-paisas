@@ -152,230 +152,241 @@ export function BehaviorTab() {
 
     return (
         <div className="space-y-8">
-            {/* Controles de Filtros */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-md">
-                <div className="flex flex-wrap gap-3">
-                    <button 
-                        onClick={() => setPeriodDays(7)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            periodDays === 7 
-                                ? 'bg-emerald-600 text-white font-bold' 
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                        }`}
-                    >
-                        Últimos 7 días
-                    </button>
-                    <button 
-                        onClick={() => setPeriodDays(30)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            periodDays === 30 
-                                ? 'bg-emerald-600 text-white font-bold' 
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                        }`}
-                    >
-                        Últimos 30 días
-                    </button>
-                    <button 
-                        onClick={() => setPeriodDays(90)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            periodDays === 90 
-                                ? 'bg-emerald-600 text-white font-bold' 
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                        }`}
-                    >
-                        Últimos 90 días
-                    </button>
+            {/* --- SECCIÓN A: MONITOREO EN TIEMPO REAL (INTRADÍA) --- */}
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md space-y-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                            <Activity className="w-5 h-5 text-emerald-400 animate-pulse" />
+                            Monitoreo de Ventas Intradía (En Vivo)
+                        </h3>
+                        <p className="text-gray-400 text-xs mt-1">Acumulados y deltas por franja horaria para la fecha de negocio seleccionada.</p>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        <input 
+                            type="date" 
+                            value={intradayDate}
+                            max={new Date().toISOString().split('T')[0]}
+                            onChange={(e) => setIntradayDate(e.target.value)}
+                            className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
+                        />
+
+                        <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
+                            <button 
+                                onClick={() => setIntradayViewMode('cumulative')}
+                                className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                    intradayViewMode === 'cumulative' 
+                                        ? 'bg-emerald-600 text-white' 
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                Acumulado
+                            </button>
+                            <button 
+                                onClick={() => setIntradayViewMode('delta')}
+                                className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                    intradayViewMode === 'delta' 
+                                        ? 'bg-emerald-600 text-white' 
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                Franjas
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <select 
-                        value={selectedClassification}
-                        onChange={(e) => setSelectedClassification(e.target.value)}
-                        className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 w-full md:w-48 font-medium cursor-pointer"
-                    >
-                        <option value="ALL">Todas las Categorías</option>
-                        {stats?.classifications.map(cl => (
-                            <option key={cl} value={cl}>{cl}</option>
-                        ))}
-                    </select>
-                </div>
+
+                {loadingIntraday ? (
+                    <div className="h-72 flex flex-col items-center justify-center text-gray-500 gap-2">
+                        <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                        <span className="text-xs">Cargando serie intradía...</span>
+                    </div>
+                ) : intradayError ? (
+                    <div className="h-72 flex items-center justify-center text-red-400 text-xs bg-red-500/5 rounded-2xl border border-red-500/10">
+                        {intradayError}
+                    </div>
+                ) : intradayData.length === 0 ? (
+                    <div className="h-72 flex flex-col items-center justify-center text-gray-500 text-xs bg-white/5 border border-white/5 rounded-2xl p-6 text-center gap-1">
+                        <Info className="w-5 h-5 text-gray-500" />
+                        <span className="font-bold text-gray-400 mt-1">Sin datos de snapshots para esta fecha</span>
+                        <span className="text-[10px] text-gray-600 max-w-xs">Los snapshots se capturan automáticamente cada 5 minutos durante la jornada de ventas.</span>
+                    </div>
+                ) : (
+                    <div className="h-72 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            {intradayViewMode === 'cumulative' ? (
+                                <AreaChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorIntradayAll" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.15}/>
+                                            <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
+                                        </linearGradient>
+                                        <linearGradient id="colorIntraday01" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15}/>
+                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                        </linearGradient>
+                                        <linearGradient id="colorIntraday02" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                    <XAxis dataKey="hora" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                                    <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                                    <Tooltip 
+                                        contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                                        labelClassName="text-gray-400 text-xs font-bold"
+                                        formatter={(value: any, name: any) => [formatCOP(Number(value)), String(name)]}
+                                    />
+                                    <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
+                                    <Area 
+                                        type="monotone" 
+                                        name="General (Consolidado)"
+                                        dataKey="venta_all"
+                                        stroke="#94a3b8"
+                                        strokeWidth={3}
+                                        fillOpacity={1}
+                                        fill="url(#colorIntradayAll)"
+                                    />
+                                    <Area 
+                                        type="monotone" 
+                                        name="BD1 (Interna)"
+                                        dataKey="venta_01"
+                                        stroke="#6366f1"
+                                        strokeWidth={2}
+                                        fillOpacity={1}
+                                        fill="url(#colorIntraday01)"
+                                    />
+                                    <Area 
+                                        type="monotone" 
+                                        name="BD2 (Fiscal)"
+                                        dataKey="venta_02"
+                                        stroke="#10b981"
+                                        strokeWidth={2}
+                                        fillOpacity={1}
+                                        fill="url(#colorIntraday02)"
+                                    />
+                                </AreaChart>
+                            ) : (
+                                <LineChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                    <XAxis dataKey="hora" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                                    <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                                    <Tooltip 
+                                        contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                                        labelClassName="text-gray-400 text-xs font-bold"
+                                        formatter={(value: any, name: any) => [formatCOP(Number(value)), String(name)]}
+                                    />
+                                    <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
+                                    <Line 
+                                        type="monotone" 
+                                        name="General (Consolidado)"
+                                        dataKey="delta_venta_all"
+                                        stroke="#94a3b8"
+                                        strokeWidth={2.5}
+                                        dot={true}
+                                    />
+                                    <Line 
+                                        type="monotone" 
+                                        name="BD1 (Interna)"
+                                        dataKey="delta_venta_01"
+                                        stroke="#6366f1"
+                                        strokeWidth={1.8}
+                                        dot={true}
+                                    />
+                                    <Line 
+                                        type="monotone" 
+                                        name="BD2 (Fiscal)"
+                                        dataKey="delta_venta_02"
+                                        stroke="#10b981"
+                                        strokeWidth={1.8}
+                                        dot={true}
+                                    />
+                                </LineChart>
+                            )}
+                        </ResponsiveContainer>
+                    </div>
+                )}
             </div>
 
-            {errorMsg ? (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl p-6 text-center space-y-2">
-                    <AlertTriangle className="w-8 h-8 mx-auto text-red-500" />
-                    <h3 className="font-bold text-white text-lg">Error de Acceso</h3>
-                    <p className="text-sm max-w-md mx-auto">{errorMsg}</p>
-                </div>
-            ) : loading ? (
-                <div className="py-24 text-center text-gray-400 space-y-4">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-emerald-500" />
-                    <p className="text-sm font-medium animate-pulse">Cargando análisis de ventas y rentabilidad...</p>
-                </div>
-            ) : stats ? (
-                <div className="space-y-8">
-                    {/* Gráfico de Ventas Intradía por Snapshots (Fase S5) */}
-                    <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md space-y-6">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div>
-                                <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                                    <Activity className="w-5 h-5 text-emerald-400 animate-pulse" />
-                                    Comportamiento de Ventas Intradía
-                                </h3>
-                                <p className="text-gray-400 text-xs mt-1">Monitoreo en tiempo real de facturación acumulada y deltas por franja de 5 minutos.</p>
-                            </div>
-                            
-                            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                                <input 
-                                    type="date" 
-                                    value={intradayDate}
-                                    max={new Date().toISOString().split('T')[0]}
-                                    onChange={(e) => setIntradayDate(e.target.value)}
-                                    className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
-                                />
+            <div className="border-t border-white/10 my-6"></div>
 
-                                <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
-                                    <button 
-                                        onClick={() => setIntradayViewMode('cumulative')}
-                                        className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                                            intradayViewMode === 'cumulative' 
-                                                ? 'bg-emerald-600 text-white' 
-                                                : 'text-gray-400 hover:text-white'
-                                        }`}
-                                    >
-                                        Acumulado
-                                    </button>
-                                    <button 
-                                        onClick={() => setIntradayViewMode('delta')}
-                                        className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                                            intradayViewMode === 'delta' 
-                                                ? 'bg-emerald-600 text-white' 
-                                                : 'text-gray-400 hover:text-white'
-                                        }`}
-                                    >
-                                        Franjas
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {loadingIntraday ? (
-                            <div className="h-64 flex flex-col items-center justify-center text-gray-500 gap-2">
-                                <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-                                <span className="text-xs">Cargando serie intradía...</span>
-                            </div>
-                        ) : intradayError ? (
-                            <div className="h-64 flex items-center justify-center text-red-400 text-xs bg-red-500/5 rounded-2xl border border-red-500/10">
-                                {intradayError}
-                            </div>
-                        ) : intradayData.length === 0 ? (
-                            <div className="h-64 flex flex-col items-center justify-center text-gray-500 text-xs bg-white/5 border border-white/5 rounded-2xl p-6 text-center gap-1">
-                                <Info className="w-5 h-5 text-gray-500" />
-                                <span className="font-bold text-gray-400 mt-1">Sin datos de snapshots para esta fecha</span>
-                                <span className="text-[10px] text-gray-600 max-w-xs">Los snapshots se capturan automáticamente cada 5 minutos durante la jornada de ventas.</span>
-                            </div>
-                        ) : (
-                            <div className="h-72 w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    {intradayViewMode === 'cumulative' ? (
-                                        <AreaChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                                            <defs>
-                                                <linearGradient id="colorIntradayAll" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.15}/>
-                                                    <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
-                                                </linearGradient>
-                                                <linearGradient id="colorIntraday01" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15}/>
-                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                                </linearGradient>
-                                                <linearGradient id="colorIntraday02" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
-                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                            <XAxis dataKey="hora" stroke="#94a3b8" fontSize={9} tickLine={false} />
-                                            <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
-                                            <Tooltip 
-                                                contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                                                labelClassName="text-gray-400 text-xs font-bold"
-                                                formatter={(value: any, name: any) => [formatCOP(Number(value)), String(name)]}
-                                            />
-                                            <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
-                                            <Area 
-                                                type="monotone" 
-                                                name="General (Consolidado)"
-                                                dataKey="venta_all"
-                                                stroke="#94a3b8"
-                                                strokeWidth={3}
-                                                fillOpacity={1}
-                                                fill="url(#colorIntradayAll)"
-                                            />
-                                            <Area 
-                                                type="monotone" 
-                                                name="BD1 (Interna)"
-                                                dataKey="venta_01"
-                                                stroke="#6366f1"
-                                                strokeWidth={2}
-                                                fillOpacity={1}
-                                                fill="url(#colorIntraday01)"
-                                            />
-                                            <Area 
-                                                type="monotone" 
-                                                name="BD2 (Fiscal)"
-                                                dataKey="venta_02"
-                                                stroke="#10b981"
-                                                strokeWidth={2}
-                                                fillOpacity={1}
-                                                fill="url(#colorIntraday02)"
-                                            />
-                                        </AreaChart>
-                                    ) : (
-                                        <LineChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                            <XAxis dataKey="hora" stroke="#94a3b8" fontSize={9} tickLine={false} />
-                                            <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
-                                            <Tooltip 
-                                                contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                                                labelClassName="text-gray-400 text-xs font-bold"
-                                                formatter={(value: any, name: any) => [formatCOP(Number(value)), String(name)]}
-                                            />
-                                            <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
-                                            <Line 
-                                                type="monotone" 
-                                                name="General (Consolidado)"
-                                                dataKey="delta_venta_all"
-                                                stroke="#94a3b8"
-                                                strokeWidth={2.5}
-                                                dot={true}
-                                            />
-                                            <Line 
-                                                type="monotone" 
-                                                name="BD1 (Interna)"
-                                                dataKey="delta_venta_01"
-                                                stroke="#6366f1"
-                                                strokeWidth={1.8}
-                                                dot={true}
-                                            />
-                                            <Line 
-                                                type="monotone" 
-                                                name="BD2 (Fiscal)"
-                                                dataKey="delta_venta_02"
-                                                stroke="#10b981"
-                                                strokeWidth={1.8}
-                                                dot={true}
-                                            />
-                                        </LineChart>
-                                    )}
-                                </ResponsiveContainer>
-                            </div>
-                        )}
+            {/* --- SECCIÓN B: ANÁLISIS HISTÓRICO Y RENTABILIDAD --- */}
+            <div className="space-y-6">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div>
+                        <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                            <Layers className="w-5 h-5 text-emerald-400" />
+                            Análisis de Tendencias Históricas y Rentabilidad
+                        </h3>
+                        <p className="text-gray-400 text-xs mt-1">Monitoreo acumulativo de márgenes de ganancia y volúmenes facturados del ERP.</p>
                     </div>
 
-                    {/* KPIs Aggregated Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group">
+                    {/* Controles de Filtros Históricos */}
+                    <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                        <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
+                            <button 
+                                onClick={() => setPeriodDays(7)}
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                    periodDays === 7 
+                                        ? 'bg-emerald-600 text-white font-bold' 
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                7D
+                            </button>
+                            <button 
+                                onClick={() => setPeriodDays(30)}
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                    periodDays === 30 
+                                        ? 'bg-emerald-600 text-white font-bold' 
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                30D
+                            </button>
+                            <button 
+                                onClick={() => setPeriodDays(90)}
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                    periodDays === 90 
+                                        ? 'bg-emerald-600 text-white font-bold' 
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                90D
+                            </button>
+                        </div>
+
+                        <select 
+                            value={selectedClassification}
+                            onChange={(e) => setSelectedClassification(e.target.value)}
+                            className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 w-full lg:w-48 font-medium cursor-pointer"
+                        >
+                            <option value="ALL">Todas las Categorías</option>
+                            {stats?.classifications.map(cl => (
+                                <option key={cl} value={cl}>{cl}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {errorMsg ? (
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl p-6 text-center space-y-2">
+                        <AlertTriangle className="w-8 h-8 mx-auto text-red-500" />
+                        <h3 className="font-bold text-white text-lg">Error de Acceso</h3>
+                        <p className="text-sm max-w-md mx-auto">{errorMsg}</p>
+                    </div>
+                ) : loading ? (
+                    <div className="py-24 text-center text-gray-400 space-y-4">
+                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-emerald-500" />
+                        <p className="text-sm font-medium animate-pulse">Cargando análisis de ventas y rentabilidad...</p>
+                    </div>
+                ) : stats ? (
+                    <div className="space-y-8">
+                        {/* KPIs Aggregated Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all duration-500"></div>
                             <div className="p-3 bg-blue-500/10 rounded-xl w-fit mb-4">
                                 <DollarSign className="w-5 h-5 text-blue-400" />
@@ -568,6 +579,7 @@ export function BehaviorTab() {
                     </div>
                 </div>
             ) : null}
+            </div>
 
             {/* Ficha de Producto (Drill-Down) */}
             <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md space-y-6">
