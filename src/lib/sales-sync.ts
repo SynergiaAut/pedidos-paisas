@@ -17,12 +17,21 @@ export interface SalesSyncSummary {
     results: SalesSyncResult[];
 }
 
-// Convertir un objeto Date a string DD/MM/YYYY esperado por el ERP
+// Convertir un objeto Date a string DD/MM/YYYY esperado por el ERP en hora Colombia
 function formatDateToCrm(date: Date): string {
-    const d = String(date.getDate()).padStart(2, '0');
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const y = date.getFullYear();
-    return `${d}/${m}/${y}`;
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+        timeZone: 'America/Bogota',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const day = parts.find(p => p.type === 'day')?.value || String(date.getDate()).padStart(2, '0');
+    const month = parts.find(p => p.type === 'month')?.value || String(date.getMonth() + 1).padStart(2, '0');
+    const year = parts.find(p => p.type === 'year')?.value || String(date.getFullYear());
+    
+    return `${day}/${month}/${year}`;
 }
 
 export async function runSalesSync(
