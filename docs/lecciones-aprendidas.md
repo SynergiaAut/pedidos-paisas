@@ -41,6 +41,17 @@ Registro vivo. Agregar al cierre de cada sesión significativa.
 **Higiene de datos de prueba**
 7. **Los datos de prueba sembrados durante el desarrollo no deben llegar nunca a una pantalla que el dueño del negocio va a mirar como "real"**: 2 sesiones de conteo de prueba quedaron en la base de datos y contaminaron ~6.5% de las cifras de descuadre mostradas en el dashboard, generando dudas legítimas sobre la confiabilidad de todo el sistema. Regla: limpiar datos de prueba antes de considerar una feature lista para demo, o marcarlos de forma que se excluyan por defecto de cualquier vista analítica.
 
-## Desviaciones de la metodología detectadas
+## Sesión 2026-07-15 (optimización analítica, zona horaria y vistas materializadas)
 
-- **Conteo móvil por link (2026-07-11):** la metodología inicial del módulo de inventario contemplaba que cada nuevo inventario generara un **link para dispositivos inalámbricos** (celulares/terminales en bodega), similar al patrón del registro QR de clientes. El `CyclicCountWizard` actual solo permite contar desde el navegador del equipo administrativo. → Registrado como feature pendiente en `.spec/integracion-api-2bd/tasks.md` (TASK-011); requiere spec propia (sesión pública tipo token por conteo + RLS insert-only sobre `inventory_counts`).
+**Datos y Servidor**
+1. **La zona horaria local del servidor es una trampa silenciosa:** El desfase de hora UTC del contenedor de producción causaba que las peticiones incrementales de facturación solicitaran al ERP fechas futuras o desfasadas (obteniendo `0 facturas` en el sync). Forzar la hora de Colombia (`America/Bogota`) usando `Intl.DateTimeFormat` de forma estricta previene desalineaciones.
+2. **Ejes temporales en Recharts sin línea base:** Si los snapshots intradía se registran a mitad del día, graficar solo los snapshots existentes causa que la curva de acumulados se vea plana de extremo a extremo, y que los deltas inicien con picos erráticos de $0 a millones al asumir que el primer punto partió de cero. Generar una **línea base continua de 24 horas desde las 00:00** rellenando vacíos con el último valor acumulado conocido soluciona esto de raíz.
+
+**Base de Datos (Supabase / Postgres)**
+3. **Vistas Materializadas para Analítica OLAP:** Hacer agregaciones SQL en caliente sobre miles de filas transaccionales (`sales_lines`) degrada el rendimiento de Supabase a mediano plazo. Una vista materializada (`mv_daily_sales_aggregation`) precalcula las ventas diarias por SKU y clasificación, reduciendo el tiempo de respuesta analítica de segundos a **2.1 ms**.
+4. **Refresco concurrente y Unique Indexes:** Para refrescar una vista materializada de forma concurrente sin bloquear lecturas de usuarios (`REFRESH MATERIALIZED VIEW CONCURRENTLY`), la vista **debe contar con un índice único**. Agrupar en la vista por columnas con variaciones menores (como la descripción del producto) arruina la unicidad del índice; la agregación debe agrupar estrictamente por las claves naturales de negocio (`fecha`, `sku`, `db_source`, `id_clasificacion`, `id_marca`) y usar funciones como `min()` para las columnas descriptivas.
+5. **Automatización del Refresco por RPC:** Exponer el refresco de la vista materializada mediante una función RPC en PostgreSQL con `security definer` permite invocarla de forma segura desde Server Actions de Node.js al finalizar la sincronización de facturas, manteniendo los datos listos de forma automatizada y sin costos extra.
+
+**Separación de Dominios Analíticos**
+6. **Pedidos vs. Facturación:** En FastOrder, un "Pedido" (`orders`) es una entidad logística de preventa/despacho consolidada manualmente por asesores, mientras que una "Factura" (`sales_lines`) es la venta bruta física en mostrador del ERP Millenium. Esta distinción hace que las dos analíticas sean necesarias y complementarias: `/analytics` (preventa/despachos) y `/inventario -> Comportamiento` (facturación total del ERP).
+
