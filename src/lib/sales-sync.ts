@@ -17,7 +17,7 @@ export interface SalesSyncSummary {
     results: SalesSyncResult[];
 }
 
-// Convertir un objeto Date a string DD/MM/YYYY esperado por el ERP en hora Colombia
+// Convertir un objeto Date a string YYYY-MM-DD esperado por Flex CRM en hora Colombia.
 function formatDateToCrm(date: Date): string {
     const formatter = new Intl.DateTimeFormat('es-CO', {
         timeZone: 'America/Bogota',
@@ -31,7 +31,7 @@ function formatDateToCrm(date: Date): string {
     const month = parts.find(p => p.type === 'month')?.value || String(date.getMonth() + 1).padStart(2, '0');
     const year = parts.find(p => p.type === 'year')?.value || String(date.getFullYear());
     
-    return `${day}/${month}/${year}`;
+    return `${year}-${month}-${day}`;
 }
 
 export async function runSalesSync(
@@ -217,4 +217,3 @@ export async function runSalesSnapshot(): Promise<{ success: boolean; rows_inser
         return { success: false, error: msg };
     }
 }
-

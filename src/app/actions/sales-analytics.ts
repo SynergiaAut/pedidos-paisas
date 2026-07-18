@@ -15,6 +15,11 @@ export interface BehaviorStats {
     bottomSellers: { sku: string; descripcion: string; system_stock: number; classification: string; brand: string }[];
     negativeMargins: { sku: string; descripcion: string; total: number; marginPct: number }[];
     classifications: string[];
+    firstSalesDate: string | null;
+    latestSalesDate: string | null;
+    daysWithSales: number;
+    isSalesDataStale: boolean;
+    coverageNote: string;
 }
 
 export interface ProductDetailData {
@@ -64,9 +69,9 @@ export async function getProductsBehaviorData(filters: {
     }
 
     const supabase = await createClient();
-    const limitDate = new Date(Date.now() - filters.periodDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const limitDate = getColombiaDateString(new Date(Date.now() - filters.periodDays * 24 * 60 * 60 * 1000));
     const targetClassification = filters.classification || 'ALL';
-    const hoyStr = new Date().toISOString().split('T')[0];
+    const hoyStr = getColombiaDateString();
 
     try {
         // 1. Llamar al RPC para diario acumulado
@@ -85,7 +90,7 @@ export async function getProductsBehaviorData(filters: {
         let totalRevenueForMargin = 0;
         let totalCostoForMargin = 0;
 
-        const trendData = (dailyData || []).map((row: any) => {
+        const trendData: { fecha: string; total: number; margenPct: number }[] = (dailyData || []).map((row: any) => {
             const v = Number(row.total_venta) || 0;
             const c = Number(row.total_costo) || 0;
             const vm = Number(row.total_venta_margin) || 0;
@@ -101,6 +106,14 @@ export async function getProductsBehaviorData(filters: {
                 margenPct: vm > 0 ? ((vm - cm) / vm) * 100 : 0
             };
         });
+
+        const salesDays = trendData.filter((row) => row.total > 0).map((row) => row.fecha);
+        const firstSalesDate = salesDays[0] || null;
+        const latestSalesDate = salesDays[salesDays.length - 1] || null;
+        const isSalesDataStale = Boolean(latestSalesDate && latestSalesDate < hoyStr);
+        const coverageNote = latestSalesDate
+            ? `Ventas sincronizadas hasta ${latestSalesDate}. ${salesDays.length} dias con ventas en el periodo.`
+            : 'Sin ventas sincronizadas en el periodo seleccionado.';
 
         const avgMarginPct = totalRevenueForMargin > 0
             ? ((totalRevenueForMargin - totalCostoForMargin) / totalRevenueForMargin) * 100
@@ -208,7 +221,12 @@ export async function getProductsBehaviorData(filters: {
             topSellers,
             bottomSellers,
             negativeMargins,
-            classifications
+            classifications,
+            firstSalesDate,
+            latestSalesDate,
+            daysWithSales: salesDays.length,
+            isSalesDataStale,
+            coverageNote
         };
 
     } catch (e: any) {
@@ -363,6 +381,73 @@ export interface IntradayPoint {
     delta_unidades_all: number;
 }
 
+export interface DailySalesSummary {
+    fecha: string;
+    venta_01: number;
+    unidades_01: number;
+    venta_02: number;
+    unidades_02: number;
+    venta_all: number;
+    unidades_all: number;
+    line_count: number;
+}
+
+export async function getDailySalesSummary(diaStr?: string): Promise<DailySalesSummary | { error: string }> {
+    const isAdmin = await verifyAdmin();
+    if (!isAdmin) {
+        return { error: 'Acceso denegado. Se requieren permisos de administrador.' };
+    }
+
+    const supabase = await createClient();
+    const targetDay = diaStr || getColombiaDateString();
+
+    const pageSize = 1000;
+    const rows: { db_source: string; cantidad: number | string | null; total: number | string | null }[] = [];
+
+    for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+            .from('sales_lines')
+            .select('db_source, cantidad, total')
+            .eq('fecha', targetDay)
+            .range(from, from + pageSize - 1);
+
+        if (error) {
+            return { error: `Error al consultar ventas del dia: ${error.message}` };
+        }
+
+        rows.push(...(data || []));
+        if (!data || data.length < pageSize) break;
+    }
+
+    const summary: DailySalesSummary = {
+        fecha: targetDay,
+        venta_01: 0,
+        unidades_01: 0,
+        venta_02: 0,
+        unidades_02: 0,
+        venta_all: 0,
+        unidades_all: 0,
+        line_count: rows.length
+    };
+
+    for (const row of rows) {
+        const venta = Number(row.total) || 0;
+        const unidades = Number(row.cantidad) || 0;
+        if (row.db_source === '01') {
+            summary.venta_01 += venta;
+            summary.unidades_01 += unidades;
+        }
+        if (row.db_source === '02') {
+            summary.venta_02 += venta;
+            summary.unidades_02 += unidades;
+        }
+        summary.venta_all += venta;
+        summary.unidades_all += unidades;
+    }
+
+    return summary;
+}
+
 export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoint[] | { error: string }> {
     const isAdmin = await verifyAdmin();
     if (!isAdmin) {
@@ -384,6 +469,11 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
     }
 
     const list = snapshots || [];
+
+    const maxSnapshotValue = list.reduce((max, snap) => Math.max(max, Number(snap.venta) || 0), 0);
+    if (list.length === 0 || maxSnapshotValue === 0) {
+        return [];
+    }
     
     // Agrupar por la hora local formateada "HH:MM" de Colombia
     const timeGroups: Record<string, { snaps: any[]; rawTime: string }> = {};
@@ -665,6 +755,3 @@ export async function getInventoryQualityReport(): Promise<QualityReportItem[] |
         return { error: `Error al compilar auditoría: ${e.message}` };
     }
 }
-
-
-

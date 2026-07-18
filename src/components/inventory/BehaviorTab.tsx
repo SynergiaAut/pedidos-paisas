@@ -5,9 +5,11 @@ import {
     getProductsBehaviorData, 
     getProductDetailData, 
     getIntradaySnapshots,
+    getDailySalesSummary,
     BehaviorStats, 
     ProductDetailData,
-    IntradayPoint
+    IntradayPoint,
+    DailySalesSummary
 } from '@/app/actions/sales-analytics';
 import { 
     TrendingUp, 
@@ -29,6 +31,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     AreaChart,
     Area,
+    BarChart,
+    Bar,
     LineChart,
     Line,
     XAxis,
@@ -43,6 +47,7 @@ const CORRUPT_SKUS = ['2202007', '701042', '606042'];
 
 export function BehaviorTab() {
     const [periodDays, setPeriodDays] = useState<number>(30);
+    const [historyGroup, setHistoryGroup] = useState<'day' | 'week' | 'month'>('day');
     const [selectedClassification, setSelectedClassification] = useState<string>('ALL');
     const [stats, setStats] = useState<BehaviorStats | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -70,6 +75,7 @@ export function BehaviorTab() {
     const [loadingIntraday, setLoadingIntraday] = useState<boolean>(true);
     const [intradayError, setIntradayError] = useState<string | null>(null);
     const [intradayViewMode, setIntradayViewMode] = useState<'cumulative' | 'delta'>('cumulative');
+    const [dailySummary, setDailySummary] = useState<DailySalesSummary | null>(null);
 
     const loadIntradayData = async () => {
         setLoadingIntraday(true);
@@ -82,8 +88,16 @@ export function BehaviorTab() {
             } else {
                 setIntradayData(result);
             }
+
+            const summary = await getDailySalesSummary(intradayDate);
+            if (!('error' in summary)) {
+                setDailySummary(summary);
+            } else {
+                setDailySummary(null);
+            }
         } catch (e) {
             setIntradayError('Error al recuperar datos intradía.');
+            setDailySummary(null);
         } finally {
             setLoadingIntraday(false);
         }
@@ -150,6 +164,39 @@ export function BehaviorTab() {
         }).format(num);
     };
 
+    const getGroupedTrendData = () => {
+        if (!stats) return [];
+        const groups: Record<string, { fecha: string; total: number; marginWeight: number }> = {};
+
+        for (const row of stats.trendData) {
+            const date = new Date(`${row.fecha}T00:00:00`);
+            let key = row.fecha;
+
+            if (historyGroup === 'week') {
+                const monday = new Date(date);
+                const day = monday.getDay() || 7;
+                monday.setDate(monday.getDate() - day + 1);
+                key = `Sem ${monday.toISOString().split('T')[0]}`;
+            }
+
+            if (historyGroup === 'month') {
+                key = row.fecha.slice(0, 7);
+            }
+
+            if (!groups[key]) groups[key] = { fecha: key, total: 0, marginWeight: 0 };
+            groups[key].total += row.total;
+            groups[key].marginWeight += row.total * row.margenPct;
+        }
+
+        return Object.values(groups).map((group) => ({
+            fecha: group.fecha,
+            total: group.total,
+            margenPct: group.total > 0 ? group.marginWeight / group.total : 0
+        }));
+    };
+
+    const groupedTrendData = getGroupedTrendData();
+
     return (
         <div className="space-y-8">
             {/* --- SECCIÓN A: MONITOREO EN TIEMPO REAL (INTRADÍA) --- */}
@@ -161,6 +208,11 @@ export function BehaviorTab() {
                             Monitoreo de Ventas Intradía (En Vivo)
                         </h3>
                         <p className="text-gray-400 text-xs mt-1">Acumulados y deltas por franja horaria para la fecha de negocio seleccionada.</p>
+                        {stats && (
+                            <p className={`text-[11px] mt-1 ${stats.isSalesDataStale ? 'text-amber-300' : 'text-emerald-300'}`}>
+                                {stats.coverageNote}
+                            </p>
+                        )}
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -207,10 +259,90 @@ export function BehaviorTab() {
                         {intradayError}
                     </div>
                 ) : intradayData.length === 0 ? (
-                    <div className="h-72 flex flex-col items-center justify-center text-gray-500 text-xs bg-white/5 border border-white/5 rounded-2xl p-6 text-center gap-1">
-                        <Info className="w-5 h-5 text-gray-500" />
-                        <span className="font-bold text-gray-400 mt-1">Sin datos de snapshots para esta fecha</span>
-                        <span className="text-[10px] text-gray-600 max-w-xs">Los snapshots se capturan automáticamente cada 5 minutos durante la jornada de ventas.</span>
+                    <div className="min-h-72 bg-white/5 border border-white/5 rounded-2xl p-5 space-y-4">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                            <div className="flex items-start gap-2">
+                                <Info className="w-4 h-4 text-gray-500 mt-0.5 shrink-0" />
+                                <div className="space-y-1">
+                            <span className="font-bold text-gray-400 block">Sin curva intradía útil para esta fecha</span>
+                            <span className="text-[10px] text-gray-600 max-w-sm block">Hay ventas diarias en el histórico, pero no hay snapshots con valor para reconstruir la curva minuto a minuto.</span>
+                                </div>
+                            </div>
+
+                            <div className="flex bg-slate-950/80 border border-white/10 rounded-xl p-0.5 w-fit">
+                                {([
+                                    ['day', 'Día'],
+                                    ['week', 'Semana'],
+                                    ['month', 'Mes']
+                                ] as const).map(([value, label]) => (
+                                    <button
+                                        key={value}
+                                        onClick={() => setHistoryGroup(value)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                            historyGroup === value
+                                                ? 'bg-blue-600 text-white font-bold'
+                                                : 'text-gray-400 hover:text-white'
+                                        }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="h-72 w-full">
+                            {loading ? (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-2">
+                                    <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
+                                    <span className="text-xs">Cargando histórico de ventas...</span>
+                                </div>
+                            ) : groupedTrendData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={groupedTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }} barCategoryGap="28%">
+                                        <defs>
+                                            <linearGradient id="fallbackSalesBar" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
+                                                <stop offset="100%" stopColor="#059669" stopOpacity={0.88} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                        <XAxis dataKey="fecha" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                                        <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000000).toFixed(0)}M`} />
+                                        <Tooltip
+                                            cursor={{ fill: 'rgba(16, 185, 129, 0.06)' }}
+                                            contentStyle={{ backgroundColor: '#08111f', borderColor: 'rgba(16,185,129,0.22)', borderRadius: '12px', boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}
+                                            labelClassName="text-gray-400 text-xs font-bold"
+                                            formatter={(value: any) => [formatCOP(Number(value)), 'Venta Bruta']}
+                                        />
+                                        <Bar dataKey="total" name="Venta Bruta" fill="url(#fallbackSalesBar)" radius={[6, 6, 2, 2]} maxBarSize={54} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-gray-500 text-xs">
+                                    No hay ventas históricas para graficar en el periodo seleccionado.
+                                </div>
+                            )}
+                        </div>
+
+                        {dailySummary && dailySummary.line_count > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
+                                <div className="bg-slate-950/60 border border-white/10 rounded-xl p-3 text-left">
+                                    <span className="text-[10px] text-gray-500 block font-bold uppercase">BD1 Interna</span>
+                                    <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_01)}</span>
+                                    <span className="text-[10px] text-gray-500">{dailySummary.unidades_01.toLocaleString('es-CO')} unidades</span>
+                                </div>
+                                <div className="bg-slate-950/60 border border-white/10 rounded-xl p-3 text-left">
+                                    <span className="text-[10px] text-gray-500 block font-bold uppercase">BD2 Fiscal</span>
+                                    <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_02)}</span>
+                                    <span className="text-[10px] text-gray-500">{dailySummary.unidades_02.toLocaleString('es-CO')} unidades</span>
+                                </div>
+                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-left">
+                                    <span className="text-[10px] text-emerald-300 block font-bold uppercase">Total del día</span>
+                                    <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_all)}</span>
+                                    <span className="text-[10px] text-emerald-200/70">{dailySummary.line_count.toLocaleString('es-CO')} líneas facturadas</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="h-72 w-full">
@@ -233,7 +365,7 @@ export function BehaviorTab() {
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                                     <XAxis dataKey="hora" stroke="#94a3b8" fontSize={9} tickLine={false} />
-                                    <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                                    <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000000).toFixed(1)}M`} />
                                     <Tooltip 
                                         contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
                                         labelClassName="text-gray-400 text-xs font-bold"
@@ -272,7 +404,7 @@ export function BehaviorTab() {
                                 <LineChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                                     <XAxis dataKey="hora" stroke="#94a3b8" fontSize={9} tickLine={false} />
-                                    <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                                    <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000000).toFixed(1)}M`} />
                                     <Tooltip 
                                         contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
                                         labelClassName="text-gray-400 text-xs font-bold"
@@ -358,6 +490,26 @@ export function BehaviorTab() {
                             </button>
                         </div>
 
+                        <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
+                            {([
+                                ['day', 'Dia'],
+                                ['week', 'Semana'],
+                                ['month', 'Mes']
+                            ] as const).map(([value, label]) => (
+                                <button
+                                    key={value}
+                                    onClick={() => setHistoryGroup(value)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                        historyGroup === value
+                                            ? 'bg-blue-600 text-white font-bold'
+                                            : 'text-gray-400 hover:text-white'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
                         <select 
                             value={selectedClassification}
                             onChange={(e) => setSelectedClassification(e.target.value)}
@@ -440,23 +592,24 @@ export function BehaviorTab() {
                             </h3>
                             <div className="h-64 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={stats.trendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                    <BarChart data={groupedTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }} barCategoryGap="28%">
                                         <defs>
                                             <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                                <stop offset="0%" stopColor="#60a5fa" stopOpacity={1}/>
+                                                <stop offset="100%" stopColor="#2563eb" stopOpacity={0.9}/>
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                                         <XAxis dataKey="fecha" stroke="#94a3b8" fontSize={10} tickLine={false} />
-                                        <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                                        <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000000).toFixed(0)}M`} />
                                         <Tooltip 
-                                            contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                                            cursor={{ fill: 'rgba(59, 130, 246, 0.07)' }}
+                                            contentStyle={{ backgroundColor: '#08111f', borderColor: 'rgba(59,130,246,0.24)', borderRadius: '12px', boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}
                                             labelClassName="text-gray-400 text-xs"
                                             formatter={(value: any) => [formatCOP(Number(value)), 'Venta Bruta']}
                                         />
-                                        <Area type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorSales)" />
-                                    </AreaChart>
+                                        <Bar dataKey="total" name="Venta Bruta" fill="url(#colorSales)" radius={[6, 6, 2, 2]} maxBarSize={54} />
+                                    </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
@@ -468,7 +621,7 @@ export function BehaviorTab() {
                             </h3>
                             <div className="h-64 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={stats.trendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                    <LineChart data={groupedTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                                         <XAxis dataKey="fecha" stroke="#94a3b8" fontSize={10} tickLine={false} />
                                         <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}%`} />

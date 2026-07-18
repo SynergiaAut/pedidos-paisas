@@ -85,9 +85,9 @@ export default function InventarioPage() {
         setSyncMsg(`❌ ${result.error}`);
       } else {
         const parts = result.results.map((r) =>
-          r.error ? `BD${r.db_source}: ❌ ${r.error}` : `BD${r.db_source}: ${r.upserted} productos`
+          r.error ? `BD${r.db_source}: pendiente (${r.error})` : `BD${r.db_source}: ${r.upserted} productos`
         );
-        setSyncMsg(`${result.status === 'success' ? '✅' : '⚠️'} ${parts.join(' · ')} (${(result.duration_ms / 1000).toFixed(1)}s)`);
+        setSyncMsg(`${result.status === 'success' ? 'Sincronización completa' : 'Sincronización parcial'}: ${parts.join(' · ')}. Se conservan los últimos datos válidos de las bases que no respondan. (${(result.duration_ms / 1000).toFixed(1)}s)`);
         await loadStats();
       }
     } catch (e) {
