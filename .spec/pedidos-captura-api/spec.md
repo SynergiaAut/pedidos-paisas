@@ -20,19 +20,20 @@ El módulo actual de captura ("Magic Paste", `src/components/sequential-paste.ts
 
 ## Proceso actual del negocio (aclarado con el cliente)
 
-- Todas las cajas de vendedores facturan en Millenium bajo el **mismo usuario**; ningún vendedor tiene acceso a Fast Order.
-- Se habilita **una sola estación de "Pedidos"**, con un **vendedor dedicado** en Millenium, y es la única que hace pedidos en Fast Order. Los demás usuarios de Fast Order son solo administración y quien recibe las entregas de los domiciliarios. ⇒ **No hay concurrencia** sobre el vendedor de Pedidos.
+- La colaboradora de pedidos se llama **Milena**. En el ERP usa los usuarios `AUXILIAR` y `PEDIDOS` en Fiscal, y `AUXILIAR` en la otra base.
+- La API de facturas no expone de forma visible el usuario de login (`AUXILIAR`/`PEDIDOS`), pero sí expone vendedor: **`ID_VENDEDOR = 1112223087`, `NOMBRE_VENDEDOR = SALAZAR MOLINA ANA MILENA`**. Ese será el discriminador operativo de su facturación.
+- Milena trabaja con varias ventanas de Millenium abiertas en las 2 bases y atiende varios clientes al tiempo: WhatsApp, mostrador y llamadas pueden interrumpirse y retomarse. ⇒ Fast Order debe modelar una **mesa multi-pedido**, no un formulario lineal de un solo pedido.
 - Un pedido puede contener productos de BD1 y BD2, por lo que puede generar **más de una factura** (una por base), emitidas de forma casi simultánea durante la atención.
 
 ## Usuarios objetivo
 
-- **Vendedor de Pedidos (única estación):** abre un pedido, factura en Millenium, confirma cada factura que Fast Order detecta, agrega datos del cliente/entrega y cierra el pedido imprimiendo su ticket.
+- **Milena / Vendedor de Pedidos:** mantiene varios borradores abiertos, alterna entre clientes, factura en Millenium, confirma cada factura que Fast Order detecta, agrega datos del cliente/entrega y cierra el pedido imprimiendo su ticket.
 - **Administración:** ve los pedidos resultantes (sin cambios en su vista).
 - **Recepción de domiciliarios / Despacho:** consume los pedidos por la vista de Despacho **exactamente igual que hoy** (Realtime sobre `orders`).
 
 ## Flujo principal (camino oficial)
 
-1. El vendedor de Pedidos **inicia un pedido nuevo** en Fast Order y deja la ventana abierta. Al abrir, Fast Order guarda la **marca de agua** = último `NUMERO` del vendedor de Pedidos en cada base (BD1/BD2).
+1. Milena **abre un borrador** en la mesa de pedidos, opcionalmente con referencia de cliente/canal (`WhatsApp`, `Mostrador`, `Teléfono`). Al abrir, Fast Order guarda la **marca de agua** = último `NUMERO` del vendedor Milena en cada base (BD1/BD2).
 2. El vendedor **factura en Millenium** la(s) factura(s) del pedido y las imprime (flujo normal del ERP, no cambia).
 3. Fast Order **sondea** `/crm/all/invoice` (hoy + vendedor de Pedidos) mientras la ventana está abierta y detecta las facturas con `NUMERO >` la marca de agua, aún no asignadas.
 4. Por cada factura detectada aparece una **ventana emergente**; el vendedor **confirma** y sus líneas se agregan al pedido "de manera mágica" (ítems, cantidades y precios reales, ya sin digitar).
@@ -46,11 +47,12 @@ El módulo actual de captura ("Magic Paste", `src/components/sequential-paste.ts
 - **Confirmación humana obligatoria** por cada factura (popup) antes de agregarla — es el reemplazo confiable del timestamp/llave inexistentes.
 - **Fallback retroactivo:** botón "traer últimas facturas de hoy del vendedor de Pedidos" para adjuntar facturas emitidas antes de abrir la ventana (por si el vendedor facturó primero).
 - **Persistencia del borrador:** la sesión de pedido y las facturas ya confirmadas se guardan en Supabase mientras la ventana está abierta, para recuperación ante cierre/caída del PC.
-- **Sin concurrencia:** se asume una sola estación de Pedidos activa (confirmado por el cliente); el diseño no soporta dos operadores simultáneos sobre el mismo vendedor.
+- **Multi-borrador para una operadora:** se soportan varios borradores abiertos para Milena en una misma estación. No se soportan todavía dos operadores simultáneos usando el mismo `ID_VENDEDOR`.
 
 ## Criterios de aceptación
 
 - [ ] Existe una vista de "Pedido en curso" para la estación de Pedidos que abre una sesión, registra la marca de agua por `db_source` y queda a la espera de facturas.
+- [ ] Existe una vista de **mesa multi-pedido** que lista varios borradores abiertos, permite crear uno nuevo por canal/referencia y cambiar entre ellos sin perder el estado.
 - [ ] Un poller server-side consulta `/crm/all/invoice` acotado a **hoy + vendedor de Pedidos** en BD1 y (cuando haya credenciales) BD2, **solo mientras haya una sesión abierta**, y sin traer catálogos completos.
 - [ ] Cada factura detectada (por marca de agua, no asignada) aparece como popup con su resumen (número, base, total, ítems) para que el vendedor **confirme o descarte**.
 - [ ] Al confirmar una factura, sus líneas reales (`ID_ITEM`, `CANTIDAD`, `PRECIO`, `TOTAL`, `db_source`, `ID_BODEGA`) se agregan al pedido; al descartarla, se marca como ignorada y no vuelve a aparecer.
@@ -74,7 +76,7 @@ El módulo actual de captura ("Magic Paste", `src/components/sequential-paste.ts
 
 ## Diseño de datos (borrador para `plan.md`)
 
-- Tabla nueva `pedido_sessions`: `id`, `id_vendedor`, `watermark` jsonb `{ "01": <numero>, "02": <numero> }`, `opened_by`, `opened_at`, `status` (`ABIERTA`/`CERRADA`/`CANCELADA`), `order_id` (fk al `orders` creado al cerrar).
+- Tabla `pedido_sessions`: `id`, `id_vendedor`, `watermark` jsonb `{ "01": <numero>, "02": <numero> }`, `opened_by`, `opened_at`, `status` (`ABIERTA`/`CERRADA`/`CANCELADA`), `order_id` (fk al `orders` creado al cerrar), y metadatos de mesa multi-pedido (`draft_label`, `source_channel`, `customer_hint`, `last_active_at`).
 - Tabla nueva `pedido_invoices` (staging idempotente): `id`, `session_id`, `db_source`, `tipodoc`, `numero`, `fecha`, `id_vendedor`, `nombre_tercero`, `total`, `raw` jsonb (con `items`), `detected_at`, `status` (`DETECTADA`/`CONFIRMADA`/`IGNORADA`). Único `(db_source, tipodoc, numero)`.
 - `flex-crm.ts`: `CrmInvoice` + `CrmInvoiceItem` (campos reales validados), `getInvoices(db, { fechainicial, fechafinal })`, `getOneInvoice(db, { tipodoc, numero })`.
 - Config: `PEDIDOS_ID_VENDEDOR` en `.env.example`/`.env.local` (o tabla de configuración) para el código del vendedor dedicado.
@@ -95,7 +97,7 @@ El módulo actual de captura ("Magic Paste", `src/components/sequential-paste.ts
 2. **Cómo unir facturas del mismo pedido (BD1+BD2)** → **semiautomática con confirmación**: ventana abierta = llave de correlación + popup por factura. No se usa hora (no existe) ni llave común.
 3. **Datos de entrega** → se capturan **en el módulo de Pedidos** (búsqueda/alta en la tabla de clientes de Fast Order, alimentada por el registro QR). La integración con `TERCERO` de Millenium es fase futura.
 4. **Fuente de captura** → **facturas** (`/crm/all/invoice`), no pedidos (Los Paisas no usa el documento "pedido").
-5. **Una sola estación de Pedidos** → confirmado; no se diseña para concurrencia sobre el mismo vendedor.
+5. **Una sola estación, varios borradores** → confirmado: Milena atiende varios clientes a la vez, por lo que se diseña una mesa multi-pedido. La concurrencia de varios operadores con el mismo vendedor queda fuera de alcance.
 6. **`MAX_INVOICES = 4`** (heurística de Magic Paste en `consolidateOrder`) **no aplica** a la captura por API: un pedido puede tener las facturas que el operador confirme. El plan debe evitar reutilizar ese tope.
 7. **Robustez operativa** → marca de agua por `NUMERO`, persistencia del borrador en Supabase y fallback "traer últimas facturas" son parte del alcance (blindajes acordados en la revisión de la lógica).
 

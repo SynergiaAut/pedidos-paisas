@@ -181,10 +181,10 @@ export function TopBar() {
                 <div className="flex items-center gap-3">
                     {/* Primary Action */}
                     <Link
-                        href="/nuevo-pedido"
+                        href="/pedidos/nuevo-api"
                         className={cn(
                             "hidden sm:flex items-center gap-2 bg-brand text-black font-bold px-4 py-2 rounded-full text-sm hover:bg-brand/90 transition-transform active:scale-95 shadow-sm shadow-brand/20",
-                            pathname === '/nuevo-pedido' && "ring-2 ring-offset-2 ring-brand"
+                            pathname === '/pedidos/nuevo-api' && "ring-2 ring-offset-2 ring-brand"
                         )}
                     >
                         <Plus className="w-4 h-4 stroke-[3]" />

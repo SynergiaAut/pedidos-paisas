@@ -64,3 +64,13 @@ Registro vivo. Agregar al cierre de cada sesión significativa.
 4. **Evitar procesos viejos escribiendo datos de control:** tener varias instancias `next dev` corriendo en paralelo puede duplicar crons y producir snapshots contradictorios. Para monitoreo en vivo, reiniciar limpio y garantizar una sola instancia activa es parte de la operación.
 5. **El primer snapshot con ventas no representa una franja normal si el monitor arrancó tarde:** ese salto es un "acumulado inicial", no ventas de cinco minutos. La UI debe etiquetarlo como corte inicial y graficar las franjas reales desde el siguiente incremento.
 6. **Un endpoint operativo debe ejecutar el ciclo completo:** para monitoreo confiable, el job no es solo "guardar snapshot"; es `sincronizar ventas de hoy -> refrescar agregados -> guardar snapshot`. Se agregó `snapshot: true` al endpoint de sync de ventas para poder probar y programar ese ciclo completo de forma explícita.
+
+## SesiÃ³n 2026-07-18 (pedidos multi-borrador y cuadre operativo)
+
+**Pedidos**
+1. **El usuario de login del ERP no siempre es el mejor discriminador operativo:** Milena trabaja con usuarios `AUXILIAR`/`PEDIDOS`, pero la API de facturas expone de forma confiable `ID_VENDEDOR` y `NOMBRE_VENDEDOR`. Para detectar su facturaciÃ³n, el vendedor (`1112223087`) es suficiente y mÃ¡s estable que perseguir el usuario interno de Millenium.
+2. **Un flujo eficiente del negocio puede verse "desordenado" desde software lineal:** Milena atiende varios clientes a la vez en varias ventanas de Millenium. La interfaz debe modelar una mesa multi-pedido con borradores paralelos, no forzar un solo pedido activo.
+
+**Cuadre**
+3. **Cuadre de caja, despacho y vendedor son dominios distintos:** `orders` sirve para logÃ­stica/despacho; `sales_lines` sirve para facturaciÃ³n real del ERP; `daily_cash_closures` sirve para registrar el conteo operativo de caja. Mezclarlos en una sola lectura produce falsos faltantes o cifras difÃ­ciles de explicar.
+4. **Un pedido pendiente no es faltante de caja:** el esperado del cierre debe sumar solo pedidos `ENTREGADO`/`PAGADO`; lo pendiente se muestra aparte como carga operativa, no como diferencia negativa.

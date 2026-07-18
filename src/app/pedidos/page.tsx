@@ -46,7 +46,6 @@ export default function DashboardPage() {
     // Ref so callbacks inside useEffect always have the latest version of openInvoiceWithWait
     const openInvoiceWithWaitRef = React.useRef<(e: InvoiceEvent) => void>(() => { });
     const [expandedOrderId, setExpandedOrderId] = React.useState<string | null>(null);
-    const [isSimulating, setIsSimulating] = React.useState(false);
     const router = useRouter();
 
     const fetchOrders = async () => {
@@ -324,24 +323,6 @@ export default function DashboardPage() {
         toast.dismiss();
     };
 
-    // Test utility: Simulate a Milenium print event
-    const handleSimulatePrint = async () => {
-        setIsSimulating(true);
-        try {
-            const res = await fetch('/api/test-print', { method: 'POST' });
-            const json = await res.json();
-            if (json.success) {
-                toast.success(`🖨️ Impresión simulada: ${json.event.invoice_number_1}`);
-            } else {
-                toast.error('Error al simular: ' + json.error);
-            }
-        } catch {
-            toast.error('Error de red al simular impresión');
-        } finally {
-            setIsSimulating(false);
-        }
-    };
-
     if (loading && orders.length === 0) return <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div></div>;
 
     return (
@@ -363,7 +344,6 @@ export default function DashboardPage() {
                 onAccept={handleInvoiceAccept}
                 onIgnore={handleInvoiceIgnore}
                 onRequestSecond={handleRequestSecond}
-                onSimulateSecond={handleSimulatePrint}
             />
 
             {/* Sticky Header Section */}
@@ -403,17 +383,7 @@ export default function DashboardPage() {
                             >
                                 <Users className="mr-2 h-4 w-4" /> Domiciliarios
                             </button>
-                            {/* TEST BUTTON: Remove after Milenium integration is verified */}
-                            <button
-                                onClick={handleSimulatePrint}
-                                disabled={isSimulating}
-                                title="Simula una impresión de Milenium (solo para pruebas)"
-                                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-orange-500/50 bg-orange-950/30 hover:bg-orange-900/50 text-orange-400 hover:text-orange-300 h-9 px-4 shadow-sm disabled:opacity-50"
-                            >
-                                <Printer className="mr-2 h-4 w-4" />
-                                {isSimulating ? 'Simulando...' : 'TEST: Simular Impresión'}
-                            </button>
-                            <Link href="/nuevo-pedido" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-brand hover:bg-brand/90 text-black font-bold h-9 px-6 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                            <Link href="/pedidos/nuevo-api" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-brand hover:bg-brand/90 text-black font-bold h-9 px-6 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                                 <Plus className="mr-2 h-4 w-4" /> Nuevo Pedido
                             </Link>
                         </div>

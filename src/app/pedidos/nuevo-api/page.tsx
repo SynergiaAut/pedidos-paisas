@@ -1,10 +1,10 @@
 "use client";
 
-import React, { Suspense, useEffect, useState, useMemo } from 'react';
+import React, { Suspense, useCallback, useEffect, useState, useMemo } from 'react';
 import { 
     MapPin, Save, RefreshCw, Loader2, Truck, 
     Store, User, Phone, Hash, ShoppingBag, ArrowLeft,
-    CheckCircle, AlertCircle, Trash2, Eye, ShieldAlert, Plus
+    CheckCircle, AlertCircle, Trash2, Eye, ShieldAlert, Plus, MessageCircle, MonitorUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 // Server Actions
 import { 
     openPedidoSession, 
+    listOpenPedidoSessions,
     pollPedidoInvoices, 
     confirmInvoice, 
     discardInvoice, 
@@ -38,6 +39,10 @@ interface PedidoSession {
     opened_at: string;
     status: 'ABIERTA' | 'CERRADA' | 'CANCELADA';
     order_id: string | null;
+    draft_label?: string | null;
+    source_channel?: 'WHATSAPP' | 'MOSTRADOR' | 'TELEFONO' | 'OTRO';
+    customer_hint?: string | null;
+    last_active_at?: string;
 }
 
 interface PedidoInvoice {
@@ -68,6 +73,7 @@ function NuevoApiContent() {
 
     // 1. Session State
     const [session, setSession] = useState<PedidoSession | null>(null);
+    const [sessions, setSessions] = useState<PedidoSession[]>([]);
     const [invoices, setInvoices] = useState<PedidoInvoice[]>([]);
     const [loadingSession, setLoadingSession] = useState(true);
     const [pollingActive, setPollingActive] = useState(false);
@@ -86,14 +92,25 @@ function NuevoApiContent() {
     // 3. Modals State
     const [isCreateClientOpen, setIsCreateClientOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<"items" | "invoices">("items");
+    const [creatingDraft, setCreatingDraft] = useState(false);
+    const [newDraftLabel, setNewDraftLabel] = useState("");
+    const [newDraftChannel, setNewDraftChannel] = useState<'WHATSAPP' | 'MOSTRADOR' | 'TELEFONO' | 'OTRO'>('WHATSAPP');
 
     // 4. Initial Load: Open/Resume Session
-    const initSession = async () => {
+    const loadSessions = useCallback(async () => {
+        const res = await listOpenPedidoSessions();
+        if (res.success) {
+            setSessions((res.sessions || []) as unknown as PedidoSession[]);
+        }
+    }, []);
+
+    const initSession = useCallback(async () => {
         setLoadingSession(true);
         try {
             const res = await openPedidoSession();
             if (res.success && res.session) {
                 setSession(res.session as unknown as PedidoSession);
+                await loadSessions();
                 toast.success("Estación de Pedidos activa y marca de agua cargada.");
             } else {
                 toast.error("Error al iniciar sesión de captura: " + res.error);
@@ -104,11 +121,54 @@ function NuevoApiContent() {
         } finally {
             setLoadingSession(false);
         }
-    };
+    }, [loadSessions]);
 
     useEffect(() => {
         initSession();
-    }, []);
+    }, [initSession]);
+
+    const resetDraftForm = () => {
+        setSelectedClient(null);
+        setClientName("");
+        setDeliveryAddress("");
+        setObservations("");
+        setDeliveryType("DOMICILIO");
+        setActiveTab("items");
+        setInvoices([]);
+    };
+
+    const handleSwitchSession = async (nextSession: PedidoSession) => {
+        if (session?.id === nextSession.id) return;
+        setSession(nextSession);
+        resetDraftForm();
+        toast.info(`Borrador activo: ${nextSession.draft_label || nextSession.customer_hint || 'Sin nombre'}`);
+    };
+
+    const handleCreateDraft = async () => {
+        setCreatingDraft(true);
+        try {
+            const res = await openPedidoSession({
+                forceNew: true,
+                draftLabel: newDraftLabel,
+                sourceChannel: newDraftChannel,
+                customerHint: newDraftLabel
+            });
+            if (res.success && res.session) {
+                const created = res.session as unknown as PedidoSession;
+                setSession(created);
+                resetDraftForm();
+                setNewDraftLabel("");
+                await loadSessions();
+                toast.success("Nuevo borrador abierto para Milena.");
+            } else {
+                toast.error("No se pudo abrir el borrador: " + res.error);
+            }
+        } catch (err) {
+            toast.error("Error al abrir borrador: " + (err instanceof Error ? err.message : String(err)));
+        } finally {
+            setCreatingDraft(false);
+        }
+    };
 
     // 5. Fetch Session Invoices from local DB
     const fetchSessionInvoices = async () => {
@@ -128,6 +188,7 @@ function NuevoApiContent() {
     useEffect(() => {
         if (session?.id) {
             fetchSessionInvoices();
+            loadSessions();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session?.id]);
@@ -323,6 +384,17 @@ function NuevoApiContent() {
     // Pending invoice to show in popup (queuing one by one)
     const pendingInvoice = detectedInvoices[0] || null;
 
+    const channelLabel = (channel?: string | null) => {
+        if (channel === 'MOSTRADOR') return 'Mostrador';
+        if (channel === 'TELEFONO') return 'Telefono';
+        if (channel === 'OTRO') return 'Otro';
+        return 'WhatsApp';
+    };
+
+    const sessionTitle = (draft: PedidoSession) => {
+        return draft.draft_label || draft.customer_hint || `Pedido ${draft.id.slice(0, 4).toUpperCase()}`;
+    };
+
     // 9. Client Selection Handler
     const handleClientSelect = (client: Client) => {
         setSelectedClient(client);
@@ -462,8 +534,84 @@ function NuevoApiContent() {
                     </div>
                 )}
 
+                {/* Multi-pedido workspace */}
+                <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+                    <div className="bg-card border rounded-xl p-4 space-y-4 h-fit">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-sm font-bold flex items-center gap-2">
+                                    <MonitorUp className="w-4 h-4 text-brand-DEFAULT" />
+                                    Mesa de Milena
+                                </h2>
+                                <p className="text-[11px] text-muted-foreground mt-1">Pedidos abiertos en paralelo</p>
+                            </div>
+                            <span className="text-[10px] font-bold bg-muted px-2 py-1 rounded-full">{sessions.length}</span>
+                        </div>
+
+                        <div className="space-y-2">
+                            <input
+                                value={newDraftLabel}
+                                onChange={(e) => setNewDraftLabel(e.target.value.toUpperCase())}
+                                placeholder="Cliente o referencia..."
+                                className="h-9 w-full rounded-md border bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand uppercase"
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                                <select
+                                    value={newDraftChannel}
+                                    onChange={(e) => setNewDraftChannel(e.target.value as typeof newDraftChannel)}
+                                    className="h-9 rounded-md border bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand"
+                                >
+                                    <option value="WHATSAPP">WhatsApp</option>
+                                    <option value="MOSTRADOR">Mostrador</option>
+                                    <option value="TELEFONO">Telefono</option>
+                                    <option value="OTRO">Otro</option>
+                                </select>
+                                <button
+                                    onClick={handleCreateDraft}
+                                    disabled={creatingDraft}
+                                    className="h-9 rounded-md bg-brand text-black text-xs font-bold hover:bg-brand/90 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                >
+                                    {creatingDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                                    Abrir
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                            {sessions.map((draft) => {
+                                const isActive = draft.id === session?.id;
+                                return (
+                                    <button
+                                        key={draft.id}
+                                        onClick={() => handleSwitchSession(draft)}
+                                        className={cn(
+                                            "w-full text-left rounded-lg border p-3 transition-all",
+                                            isActive
+                                                ? "border-brand bg-brand/10 shadow-sm"
+                                                : "border-border bg-background hover:bg-muted/40"
+                                        )}
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold truncate">{sessionTitle(draft)}</p>
+                                                <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                                                    <MessageCircle className="w-3 h-3" />
+                                                    {channelLabel(draft.source_channel)}
+                                                </p>
+                                            </div>
+                                            {isActive && <span className="text-[9px] font-bold text-brand-DEFAULT">ACTIVO</span>}
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground mt-2 font-mono">
+                                            WM BD1:{Number(draft.watermark?.['01'] || 0)} BD2:{Number(draft.watermark?.['02'] || 0)}
+                                        </p>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                 {/* Main Content Layout */}
-                <div className="grid gap-6 lg:grid-cols-12">
+                <div className="grid gap-6 lg:grid-cols-12 min-w-0">
                     
                     {/* Left Column: Consolidated Order Staging */}
                     <div className="lg:col-span-7 space-y-6">
@@ -713,6 +861,8 @@ function NuevoApiContent() {
                         </div>
 
                     </div>
+
+                </div>
 
                 </div>
 

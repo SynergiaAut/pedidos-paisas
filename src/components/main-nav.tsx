@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LogOut, Shield, Package, Plus, Users, RefreshCw } from "lucide-react";
+import { LogOut, Shield, Package, Plus, Users } from "lucide-react";
 
 export function MainNav() {
     const pathname = usePathname();
@@ -50,15 +50,9 @@ export function MainNav() {
         },
         {
             href: "/pedidos/nuevo-api",
-            label: "Captura API",
-            icon: RefreshCw,
-            active: pathname === "/pedidos/nuevo-api",
-        },
-        {
-            href: "/nuevo-pedido",
             label: "Nueva Orden",
             icon: Plus,
-            active: pathname === "/nuevo-pedido",
+            active: pathname === "/pedidos/nuevo-api",
         },
     ];
 

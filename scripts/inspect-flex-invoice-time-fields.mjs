@@ -83,16 +83,20 @@ for (const [db, cfg] of Object.entries(DBS)) {
   const allKeys = new Set();
   const allItemKeys = new Set();
   const dispatchTimes = new Map();
-  for (const wrapper of invoices.slice(0, 50)) {
+  const sellers = new Map();
+  for (const wrapper of invoices) {
     const doc = wrapper.factura || wrapper;
     Object.keys(doc).forEach((key) => allKeys.add(key));
     if (doc.FECHA_DESPACHO) {
       dispatchTimes.set(doc.FECHA_DESPACHO, (dispatchTimes.get(doc.FECHA_DESPACHO) || 0) + 1);
     }
+    const sellerKey = `${doc.ID_VENDEDOR ?? 'SIN_ID'} | ${doc.NOMBRE_VENDEDOR ?? 'SIN_NOMBRE'}`;
+    sellers.set(sellerKey, (sellers.get(sellerKey) || 0) + 1);
     const firstItem = Array.isArray(doc.items) ? doc.items[0] : null;
     if (firstItem) Object.keys(firstItem).forEach((key) => allItemKeys.add(key));
   }
   console.log('docKeys', [...allKeys].sort().join(', '));
   console.log('itemKeys', [...allItemKeys].sort().join(', '));
   console.log('FECHA_DESPACHO muestras', [...dispatchTimes.entries()].slice(0, 20).map(([value, count]) => `${value} (${count})`).join(' | '));
+  console.log('Vendedores muestras', [...sellers.entries()].map(([value, count]) => `${value} (${count})`).join(' | '));
 }

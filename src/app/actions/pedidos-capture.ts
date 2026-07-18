@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getFlexCrm, hasCredentials } from '@/lib/flex-crm';
 import { repairMojibake } from '@/lib/flex-crm';
 
-const VENDEDOR_ID = Number(process.env.PEDIDOS_ID_VENDEDOR || '1114835229');
+const VENDEDOR_ID = Number(process.env.PEDIDOS_ID_VENDEDOR || '1112223087');
 
 // Obtener fecha YYYY-MM-DD en UTC-5 (Colombia)
 function getColombiaDateString(d: Date = new Date()): string {
@@ -22,23 +22,9 @@ function getColombiaDateString(d: Date = new Date()): string {
 
 const generateOrderId = () => `PED-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}A`;
 
-export async function openPedidoSession() {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+type PedidoChannel = 'WHATSAPP' | 'MOSTRADOR' | 'TELEFONO' | 'OTRO';
 
-    // 1. Verificar si ya hay una sesión ABIERTA para este usuario
-    const { data: existingSession } = await supabase
-        .from('pedido_sessions')
-        .select('*')
-        .eq('status', 'ABIERTA')
-        .limit(1)
-        .maybeSingle();
-
-    if (existingSession) {
-        return { success: true, session: existingSession };
-    }
-
-    // 2. Obtener watermark inicial (max factura de los últimos 3 días para evitar duplicados históricos)
+async function getCurrentWatermark() {
     const fechaHoy = getColombiaDateString();
     const d = new Date();
     d.setDate(d.getDate() - 3);
@@ -47,7 +33,6 @@ export async function openPedidoSession() {
     let watermark01 = 0;
     let watermark02 = 0;
 
-    // BD1
     try {
         const crm01 = getFlexCrm('01');
         const invoices01 = await crm01.getInvoices(fechaDesde, fechaHoy);
@@ -56,10 +41,9 @@ export async function openPedidoSession() {
             watermark01 = Math.max(...vInvoices01.map(i => Number(i.numero)));
         }
     } catch (e) {
-        console.error('[openPedidoSession] Error obteniendo watermark BD1:', e);
+        console.error('[getCurrentWatermark] Error obteniendo watermark BD1:', e);
     }
 
-    // BD2 (Solo si tiene credenciales configuradas)
     if (hasCredentials('02')) {
         try {
             const crm02 = getFlexCrm('02');
@@ -69,20 +53,76 @@ export async function openPedidoSession() {
                 watermark02 = Math.max(...vInvoices02.map(i => Number(i.numero)));
             }
         } catch (e) {
-            console.warn('[openPedidoSession] Advertencia obteniendo watermark BD2:', e instanceof Error ? e.message : e);
+            console.warn('[getCurrentWatermark] Advertencia obteniendo watermark BD2:', e instanceof Error ? e.message : e);
         }
     } else {
-        console.log('[openPedidoSession] BD2 (PAISASFISCAL) omitida por falta de credenciales.');
+        console.log('[getCurrentWatermark] BD2 (PAISASFISCAL) omitida por falta de credenciales.');
     }
 
-    // 3. Crear sesión
+    return { "01": watermark01, "02": watermark02 };
+}
+
+export async function listOpenPedidoSessions() {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('pedido_sessions')
+        .select('*')
+        .eq('status', 'ABIERTA')
+        .order('last_active_at', { ascending: false });
+
+    if (error) {
+        return { success: false, error: error.message, sessions: [] };
+    }
+
+    return { success: true, sessions: data || [] };
+}
+
+export async function touchPedidoSession(sessionId: string) {
+    const supabase = await createClient();
+    await supabase
+        .from('pedido_sessions')
+        .update({ last_active_at: new Date().toISOString() })
+        .eq('id', sessionId)
+        .eq('status', 'ABIERTA');
+}
+
+export async function openPedidoSession(options?: {
+    forceNew?: boolean;
+    draftLabel?: string;
+    sourceChannel?: PedidoChannel;
+    customerHint?: string;
+}) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const forceNew = options?.forceNew === true;
+
+    // Compatibilidad: si no se fuerza nueva, retomar el borrador abierto más reciente.
+    const { data: existingSession } = !forceNew ? await supabase
+        .from('pedido_sessions')
+        .select('*')
+        .eq('status', 'ABIERTA')
+        .order('last_active_at', { ascending: false })
+        .limit(1)
+        .maybeSingle() : { data: null };
+
+    if (existingSession && !forceNew) {
+        return { success: true, session: existingSession };
+    }
+
+    const watermark = await getCurrentWatermark();
+
     const { data: session, error } = await supabase
         .from('pedido_sessions')
         .insert({
             id_vendedor: VENDEDOR_ID,
-            watermark: { "01": watermark01, "02": watermark02 },
+            watermark,
             opened_by: user?.id || null,
-            status: 'ABIERTA'
+            status: 'ABIERTA',
+            draft_label: options?.draftLabel?.trim() || null,
+            source_channel: options?.sourceChannel || 'WHATSAPP',
+            customer_hint: options?.customerHint?.trim() || null,
+            last_active_at: new Date().toISOString()
         })
         .select()
         .single();
@@ -109,6 +149,8 @@ export async function pollPedidoInvoices(sessionId: string) {
         if (sessionError || !session || session.status !== 'ABIERTA') {
             return { success: false, error: 'Sesión no válida o cerrada', errors: [] };
         }
+
+        await touchPedidoSession(sessionId);
 
         const watermark = session.watermark || {};
         const wm01 = Number(watermark["01"] || 0);
