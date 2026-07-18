@@ -55,3 +55,12 @@ Registro vivo. Agregar al cierre de cada sesión significativa.
 **Separación de Dominios Analíticos**
 6. **Pedidos vs. Facturación:** En FastOrder, un "Pedido" (`orders`) es una entidad logística de preventa/despacho consolidada manualmente por asesores, mientras que una "Factura" (`sales_lines`) es la venta bruta física en mostrador del ERP Millenium. Esta distinción hace que las dos analíticas sean necesarias y complementarias: `/analytics` (preventa/despachos) y `/inventario -> Comportamiento` (facturación total del ERP).
 
+## Sesión 2026-07-18 (monitoreo intradía de ventas y calidad de snapshots)
+
+**Analítica en vivo**
+1. **Un total diario real no equivale a comportamiento intradía real:** si la API del ERP solo entrega `FECHA` y no hora de factura, el histórico por día puede ser correcto aunque la curva por horarios dependa exclusivamente de snapshots tomados por Fast Order.
+2. **La regla correcta de franjas es simple, pero exige acumulados frescos:** `venta acumulada snapshot actual - venta acumulada snapshot anterior = venta de la franja`. Si antes de cada snapshot no se sincroniza primero el día actual desde Flex CRM, la diferencia queda en cero aunque el granero siga facturando.
+3. **Los snapshots de ventas deben ser monotónicos durante el día:** un acumulado de ventas no debe bajar. Si baja, hay dato parcial u obsoleto, por ejemplo una instancia vieja escribiendo snapshots con lógica anterior. La UI debe ignorar retrocesos y usar el mayor acumulado visto por base para evitar gráficas engañosas.
+4. **Evitar procesos viejos escribiendo datos de control:** tener varias instancias `next dev` corriendo en paralelo puede duplicar crons y producir snapshots contradictorios. Para monitoreo en vivo, reiniciar limpio y garantizar una sola instancia activa es parte de la operación.
+5. **El primer snapshot con ventas no representa una franja normal si el monitor arrancó tarde:** ese salto es un "acumulado inicial", no ventas de cinco minutos. La UI debe etiquetarlo como corte inicial y graficar las franjas reales desde el siguiente incremento.
+6. **Un endpoint operativo debe ejecutar el ciclo completo:** para monitoreo confiable, el job no es solo "guardar snapshot"; es `sincronizar ventas de hoy -> refrescar agregados -> guardar snapshot`. Se agregó `snapshot: true` al endpoint de sync de ventas para poder probar y programar ese ciclo completo de forma explícita.

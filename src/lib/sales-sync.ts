@@ -143,17 +143,24 @@ export async function runSalesSnapshot(): Promise<{ success: boolean; rows_inser
     try {
         console.log(`[SnapshotVentas] Calculando acumulado de ventas de hoy (${hoy}) en hora Colombia...`);
         
-        // Consultar todas las ventas de hoy
-        const { data: sales, error: queryError } = await supabase
-            .from('sales_lines')
-            .select('db_source, cantidad, total, total_costo, sku')
-            .eq('fecha', hoy);
-            
-        if (queryError) {
-            throw new Error(`Error consultando sales_lines: ${queryError.message}`);
-        }
+        // Consultar todas las ventas de hoy. PostgREST pagina en 1.000 filas por defecto.
+        const pageSize = 1000;
+        const salesList: { db_source: string | null; cantidad: number | string | null; total: number | string | null; total_costo: number | string | null; sku: string | number | null }[] = [];
 
-        const salesList = sales || [];
+        for (let from = 0; ; from += pageSize) {
+            const { data: sales, error: queryError } = await supabase
+                .from('sales_lines')
+                .select('db_source, cantidad, total, total_costo, sku')
+                .eq('fecha', hoy)
+                .range(from, from + pageSize - 1);
+
+            if (queryError) {
+                throw new Error(`Error consultando sales_lines: ${queryError.message}`);
+            }
+
+            salesList.push(...(sales || []));
+            if (!sales || sales.length < pageSize) break;
+        }
         
         // Estructuras para acumular por BD y ALL
         const totals: Record<string, { unidades: number; venta: number; costo: number; margen: number }> = {

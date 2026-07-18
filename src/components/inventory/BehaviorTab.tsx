@@ -31,6 +31,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     AreaChart,
     Area,
+    ComposedChart,
     BarChart,
     Bar,
     LineChart,
@@ -48,6 +49,7 @@ const CORRUPT_SKUS = ['2202007', '701042', '606042'];
 export function BehaviorTab() {
     const [periodDays, setPeriodDays] = useState<number>(30);
     const [historyGroup, setHistoryGroup] = useState<'day' | 'week' | 'month'>('day');
+    const [monitorMode, setMonitorMode] = useState<'live' | 'day' | 'week' | 'month'>('live');
     const [selectedClassification, setSelectedClassification] = useState<string>('ALL');
     const [stats, setStats] = useState<BehaviorStats | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -74,7 +76,7 @@ export function BehaviorTab() {
     const [intradayData, setIntradayData] = useState<IntradayPoint[]>([]);
     const [loadingIntraday, setLoadingIntraday] = useState<boolean>(true);
     const [intradayError, setIntradayError] = useState<string | null>(null);
-    const [intradayViewMode, setIntradayViewMode] = useState<'cumulative' | 'delta'>('cumulative');
+    const [intradayViewMode, setIntradayViewMode] = useState<'cumulative' | 'delta'>('delta');
     const [dailySummary, setDailySummary] = useState<DailySalesSummary | null>(null);
 
     const loadIntradayData = async () => {
@@ -164,7 +166,7 @@ export function BehaviorTab() {
         }).format(num);
     };
 
-    const getGroupedTrendData = () => {
+    const getGroupedTrendData = (groupBy: 'day' | 'week' | 'month' = historyGroup) => {
         if (!stats) return [];
         const groups: Record<string, { fecha: string; total: number; marginWeight: number }> = {};
 
@@ -172,14 +174,14 @@ export function BehaviorTab() {
             const date = new Date(`${row.fecha}T00:00:00`);
             let key = row.fecha;
 
-            if (historyGroup === 'week') {
+            if (groupBy === 'week') {
                 const monday = new Date(date);
                 const day = monday.getDay() || 7;
                 monday.setDate(monday.getDate() - day + 1);
                 key = `Sem ${monday.toISOString().split('T')[0]}`;
             }
 
-            if (historyGroup === 'month') {
+            if (groupBy === 'month') {
                 key = row.fecha.slice(0, 7);
             }
 
@@ -196,6 +198,26 @@ export function BehaviorTab() {
     };
 
     const groupedTrendData = getGroupedTrendData();
+    const monitorTrendData = getGroupedTrendData(monitorMode === 'live' ? historyGroup : monitorMode);
+    const hasInitialSyncJump = intradayData.some((point) => point.is_initial_sync);
+    const initialSyncPoint = intradayData.find((point) => point.is_initial_sync);
+    const firstLiveIndex = intradayData.findIndex((point) => point.venta_all > 0 || point.delta_venta_all > 0);
+    const deltaWindowStart = firstLiveIndex >= 0 ? Math.max(0, firstLiveIndex - 1) : 0;
+    const intradayDeltaData = intradayData.slice(deltaWindowStart).map((point) => (
+        point.is_initial_sync
+            ? {
+                ...point,
+                delta_venta_01: 0,
+                delta_unidades_01: 0,
+                delta_venta_02: 0,
+                delta_unidades_02: 0,
+                delta_venta_all: 0,
+                delta_unidades_all: 0
+            }
+            : point
+    ));
+    const hasDeltaActivityAfterInitial = intradayDeltaData.some((point) => !point.is_initial_sync && point.delta_venta_all > 0);
+    const shouldShowDeltaWaitingState = intradayViewMode === 'delta' && hasInitialSyncJump && !hasDeltaActivityAfterInitial;
 
     return (
         <div className="space-y-8">
@@ -216,6 +238,30 @@ export function BehaviorTab() {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
+                            {([
+                                ['live', 'En vivo'],
+                                ['day', 'Dia'],
+                                ['week', 'Semana'],
+                                ['month', 'Mes']
+                            ] as const).map(([value, label]) => (
+                                <button
+                                    key={value}
+                                    onClick={() => {
+                                        setMonitorMode(value);
+                                        if (value !== 'live') setHistoryGroup(value);
+                                    }}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                        monitorMode === value
+                                            ? 'bg-blue-600 text-white font-bold'
+                                            : 'text-gray-400 hover:text-white'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
                         <input 
                             type="date" 
                             value={intradayDate}
@@ -224,8 +270,9 @@ export function BehaviorTab() {
                             className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
                         />
 
-                        <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
+                        <div className={`flex bg-slate-900 border border-white/10 rounded-xl p-0.5 ${monitorMode !== 'live' ? 'opacity-50' : ''}`}>
                             <button 
+                                disabled={monitorMode !== 'live'}
                                 onClick={() => setIntradayViewMode('cumulative')}
                                 className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
                                     intradayViewMode === 'cumulative' 
@@ -236,6 +283,7 @@ export function BehaviorTab() {
                                 Acumulado
                             </button>
                             <button 
+                                disabled={monitorMode !== 'live'}
                                 onClick={() => setIntradayViewMode('delta')}
                                 className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
                                     intradayViewMode === 'delta' 
@@ -249,7 +297,75 @@ export function BehaviorTab() {
                     </div>
                 </div>
 
-                {loadingIntraday ? (
+                {monitorMode !== 'live' ? (
+                    <div className="min-h-72 bg-white/5 border border-white/5 rounded-2xl p-5 space-y-4">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                            <div className="flex items-start gap-2">
+                                <ShoppingBag className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                                <div className="space-y-1">
+                                    <span className="font-bold text-gray-300 text-sm block">
+                                        Ventas historicas por {monitorMode === 'day' ? 'dia' : monitorMode === 'week' ? 'semana' : 'mes'}
+                                    </span>
+                                    <span className="text-[11px] text-gray-500 block">Serie construida desde facturas sincronizadas del ERP.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="h-72 w-full">
+                            {loading ? (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-2">
+                                    <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
+                                    <span className="text-xs">Cargando historico de ventas...</span>
+                                </div>
+                            ) : monitorTrendData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={monitorTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }} barCategoryGap="28%">
+                                        <defs>
+                                            <linearGradient id="monitorSalesBar" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
+                                                <stop offset="100%" stopColor="#059669" stopOpacity={0.88} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                        <XAxis dataKey="fecha" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                                        <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000000).toFixed(0)}M`} />
+                                        <Tooltip
+                                            cursor={{ fill: 'rgba(16, 185, 129, 0.06)' }}
+                                            contentStyle={{ backgroundColor: '#08111f', borderColor: 'rgba(16,185,129,0.22)', borderRadius: '12px', boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}
+                                            labelClassName="text-gray-400 text-xs font-bold"
+                                            formatter={(value: any) => [formatCOP(Number(value)), 'Venta Bruta']}
+                                        />
+                                        <Bar dataKey="total" name="Venta Bruta" fill="url(#monitorSalesBar)" radius={[6, 6, 2, 2]} maxBarSize={54} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-gray-500 text-xs">
+                                    No hay ventas historicas para graficar en el periodo seleccionado.
+                                </div>
+                            )}
+                        </div>
+
+                        {dailySummary && dailySummary.line_count > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
+                                <div className="bg-slate-950/60 border border-white/10 rounded-xl p-3 text-left">
+                                    <span className="text-[10px] text-gray-500 block font-bold uppercase">BD1 Interna</span>
+                                    <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_01)}</span>
+                                    <span className="text-[10px] text-gray-500">{dailySummary.unidades_01.toLocaleString('es-CO')} unidades</span>
+                                </div>
+                                <div className="bg-slate-950/60 border border-white/10 rounded-xl p-3 text-left">
+                                    <span className="text-[10px] text-gray-500 block font-bold uppercase">BD2 Fiscal</span>
+                                    <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_02)}</span>
+                                    <span className="text-[10px] text-gray-500">{dailySummary.unidades_02.toLocaleString('es-CO')} unidades</span>
+                                </div>
+                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-left">
+                                    <span className="text-[10px] text-emerald-300 block font-bold uppercase">Total fecha seleccionada</span>
+                                    <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_all)}</span>
+                                    <span className="text-[10px] text-emerald-200/70">{dailySummary.line_count.toLocaleString('es-CO')} lineas facturadas</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ) : loadingIntraday ? (
                     <div className="h-72 flex flex-col items-center justify-center text-gray-500 gap-2">
                         <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
                         <span className="text-xs">Cargando serie intradía...</span>
@@ -345,7 +461,20 @@ export function BehaviorTab() {
                         )}
                     </div>
                 ) : (
-                    <div className="h-72 w-full">
+                    <div className="min-h-72 w-full">
+                        {shouldShowDeltaWaitingState ? (
+                            <div className="h-72 flex flex-col items-center justify-center bg-white/5 border border-white/5 rounded-2xl text-center px-6">
+                                <Activity className="w-6 h-6 text-emerald-400 mb-3" />
+                                <h4 className="text-white font-bold text-sm">Monitor activo desde {initialSyncPoint?.hora || 'el ultimo corte'}</h4>
+                                <p className="text-gray-500 text-xs mt-2 max-w-xl">
+                                    Se detecto un acumulado inicial de {initialSyncPoint ? formatCOP(initialSyncPoint.venta_all) : 'ventas previas'}, pero aun no hay incrementos posteriores para construir franjas de venta.
+                                </p>
+                                <p className="text-amber-300/80 text-[11px] mt-3 max-w-xl">
+                                    Para ver horarios pico reales, el monitor debe estar activo desde apertura o Flex CRM debe entregar la hora de cada factura.
+                                </p>
+                            </div>
+                        ) : (
+                        <div className="h-72 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             {intradayViewMode === 'cumulative' ? (
                                 <AreaChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -401,43 +530,69 @@ export function BehaviorTab() {
                                     />
                                 </AreaChart>
                             ) : (
-                                <LineChart data={intradayData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                <ComposedChart data={intradayDeltaData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }} barCategoryGap="20%">
+                                    <defs>
+                                        <linearGradient id="deltaBar01" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#818cf8" stopOpacity={1} />
+                                            <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.86} />
+                                        </linearGradient>
+                                        <linearGradient id="deltaBar02" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
+                                            <stop offset="100%" stopColor="#059669" stopOpacity={0.86} />
+                                        </linearGradient>
+                                    </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                                     <XAxis dataKey="hora" stroke="#94a3b8" fontSize={9} tickLine={false} />
                                     <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} tickFormatter={(v) => `$${(Number(v) / 1000000).toFixed(1)}M`} />
                                     <Tooltip 
-                                        contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                                        cursor={{ fill: 'rgba(16, 185, 129, 0.06)' }}
+                                        contentStyle={{ backgroundColor: '#08111f', borderColor: 'rgba(16,185,129,0.22)', borderRadius: '12px', boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}
                                         labelClassName="text-gray-400 text-xs font-bold"
                                         formatter={(value: any, name: any) => [formatCOP(Number(value)), String(name)]}
                                     />
                                     <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
-                                    <Line 
-                                        type="monotone" 
-                                        name="General (Consolidado)"
-                                        dataKey="delta_venta_all"
-                                        stroke="#94a3b8"
-                                        strokeWidth={2.5}
-                                        dot={true}
-                                    />
-                                    <Line 
-                                        type="monotone" 
+                                    <Bar
                                         name="BD1 (Interna)"
                                         dataKey="delta_venta_01"
-                                        stroke="#6366f1"
-                                        strokeWidth={1.8}
-                                        dot={true}
+                                        stackId="ventas"
+                                        fill="url(#deltaBar01)"
+                                        radius={[4, 4, 0, 0]}
+                                        maxBarSize={42}
                                     />
-                                    <Line 
-                                        type="monotone" 
+                                    <Bar
                                         name="BD2 (Fiscal)"
                                         dataKey="delta_venta_02"
-                                        stroke="#10b981"
-                                        strokeWidth={1.8}
-                                        dot={true}
+                                        stackId="ventas"
+                                        fill="url(#deltaBar02)"
+                                        radius={[4, 4, 0, 0]}
+                                        maxBarSize={42}
                                     />
-                                </LineChart>
+                                    <Line
+                                        type="monotone"
+                                        name="General (Consolidado)"
+                                        dataKey="delta_venta_all"
+                                        stroke="#cbd5e1"
+                                        strokeWidth={2}
+                                        dot={false}
+                                        activeDot={{ r: 4, stroke: '#0f172a', strokeWidth: 2 }}
+                                    />
+                                </ComposedChart>
                             )}
                         </ResponsiveContainer>
+                        </div>
+                        )}
+                        {intradayViewMode === 'delta' && hasInitialSyncJump && (
+                            <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2 text-[10px] text-amber-300/80">
+                                <span>
+                                    Acumulado inicial detectado {initialSyncPoint ? `a las ${initialSyncPoint.hora}` : ''}: {initialSyncPoint ? formatCOP(initialSyncPoint.venta_all) : 'ventas previas'}.
+                                </span>
+                                <span className="text-gray-500">
+                                    {hasDeltaActivityAfterInitial
+                                        ? 'La grafica enfoca las franjas posteriores para identificar horarios de mayor venta.'
+                                        : 'Aun no hay nuevas ventas capturadas despues de ese corte.'}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

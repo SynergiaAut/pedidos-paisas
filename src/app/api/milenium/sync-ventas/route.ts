@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runSalesSync } from '@/lib/sales-sync';
+import { runSalesSnapshot, runSalesSync } from '@/lib/sales-sync';
 
 export const maxDuration = 300; // Permitir hasta 5 minutos (túnel SSH)
 
 /**
  * POST /api/milenium/sync-ventas
- * Body opcional: { "db": "01" | "02" | "all", "fi": "YYYY-MM-DD", "ff": "YYYY-MM-DD" }
+ * Body opcional: { "db": "01" | "02" | "all", "fi": "YYYY-MM-DD", "ff": "YYYY-MM-DD", "snapshot": true }
  * Header requerido: x-sync-secret == process.env.SYNC_SECRET
  *
  * Punto de entrada para sincronización incremental e histórica de ventas.
@@ -44,8 +44,9 @@ export async function POST(req: NextRequest) {
         }
         
         const summary = await runSalesSync(body.db ?? 'all', startDate, endDate);
+        const snapshot = body.snapshot === true ? await runSalesSnapshot() : undefined;
         
-        return NextResponse.json(summary, {
+        return NextResponse.json(snapshot ? { ...summary, snapshot } : summary, {
             status: summary.status === 'error' ? 502 : 200
         });
     } catch (err: unknown) {

@@ -4,6 +4,7 @@
  *
  * Uso:
  *   node scripts/run-sales-sync-range.mjs all 2026-07-16 2026-07-17 3000
+ *   node scripts/run-sales-sync-range.mjs all 2026-07-18 2026-07-18 3000 snapshot
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -24,6 +25,7 @@ const db = process.argv[2] || 'all';
 const fi = process.argv[3];
 const ff = process.argv[4] || fi;
 const port = process.argv[5] || '3000';
+const shouldSnapshot = process.argv[6] === 'snapshot';
 
 if (!fi || !/^\d{4}-\d{2}-\d{2}$/.test(fi) || !/^\d{4}-\d{2}-\d{2}$/.test(ff)) {
   console.error('Uso: node scripts/run-sales-sync-range.mjs all 2026-07-16 2026-07-17 3000');
@@ -35,14 +37,14 @@ if (!process.env.SYNC_SECRET) {
   process.exit(1);
 }
 
-console.log(`Sync ventas db=${db}, rango=${fi} -> ${ff}`);
+console.log(`Sync ventas db=${db}, rango=${fi} -> ${ff}${shouldSnapshot ? ' + snapshot' : ''}`);
 const res = await fetch(`http://localhost:${port}/api/milenium/sync-ventas`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'x-sync-secret': process.env.SYNC_SECRET,
   },
-  body: JSON.stringify({ db, fi, ff }),
+  body: JSON.stringify({ db, fi, ff, snapshot: shouldSnapshot }),
 });
 
 const summary = await res.json();

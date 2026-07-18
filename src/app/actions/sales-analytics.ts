@@ -379,6 +379,7 @@ export interface IntradayPoint {
     unidades_all: number;
     delta_venta_all: number;
     delta_unidades_all: number;
+    is_initial_sync: boolean;
 }
 
 export interface DailySalesSummary {
@@ -548,21 +549,35 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
             const snaps_01 = snaps.filter(s => s.db_source === '01');
             if (snaps_01.length > 0) {
                 const s = snaps_01[snaps_01.length - 1];
-                current_01 = { venta: Number(s.venta) || 0, unidades: Number(s.unidades) || 0 };
+                current_01 = {
+                    venta: Math.max(current_01.venta, Number(s.venta) || 0),
+                    unidades: Math.max(current_01.unidades, Number(s.unidades) || 0)
+                };
             }
             
             const snaps_02 = snaps.filter(s => s.db_source === '02');
             if (snaps_02.length > 0) {
                 const s = snaps_02[snaps_02.length - 1];
-                current_02 = { venta: Number(s.venta) || 0, unidades: Number(s.unidades) || 0 };
+                current_02 = {
+                    venta: Math.max(current_02.venta, Number(s.venta) || 0),
+                    unidades: Math.max(current_02.unidades, Number(s.unidades) || 0)
+                };
             }
             
             const snaps_all = snaps.filter(s => s.db_source === 'ALL');
             if (snaps_all.length > 0) {
                 const s = snaps_all[snaps_all.length - 1];
-                current_all = { venta: Number(s.venta) || 0, unidades: Number(s.unidades) || 0 };
+                current_all = {
+                    venta: Math.max(current_all.venta, Number(s.venta) || 0),
+                    unidades: Math.max(current_all.unidades, Number(s.unidades) || 0)
+                };
             }
         }
+
+        current_all = {
+            venta: Math.max(current_all.venta, current_01.venta + current_02.venta),
+            unidades: Math.max(current_all.unidades, current_01.unidades + current_02.unidades)
+        };
 
         // Calcular deltas (siempre >= 0)
         const delta_v01 = Math.max(0, current_01.venta - prev_01.venta);
@@ -573,6 +588,9 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
         
         const delta_vall = Math.max(0, current_all.venta - prev_all.venta);
         const delta_uall = Math.max(0, current_all.unidades - prev_all.unidades);
+
+        const hadPreviousIntervals = points.length > 0;
+        const isInitialSync = hadPreviousIntervals && prev_all.venta === 0 && current_all.venta > 0;
 
         points.push({
             hora: time,
@@ -588,7 +606,8 @@ export async function getIntradaySnapshots(diaStr?: string): Promise<IntradayPoi
             venta_all: current_all.venta,
             unidades_all: current_all.unidades,
             delta_venta_all: delta_vall,
-            delta_unidades_all: delta_uall
+            delta_unidades_all: delta_uall,
+            is_initial_sync: isInitialSync
         });
 
         // Actualizar anteriores
