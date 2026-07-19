@@ -93,6 +93,29 @@ const sellerName = (id: string) => {
     return `Vendedor ${id}`;
 };
 
+async function fetchSalesLinesForSellerClosure(date: string): Promise<SalesLineForSeller[]> {
+    const pageSize = 1000;
+    const rows: SalesLineForSeller[] = [];
+
+    for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+            .from("sales_lines")
+            .select("db_source, tipodoc, numero, id_vendedor, total")
+            .eq("fecha", date)
+            .range(from, from + pageSize - 1);
+
+        if (error) {
+            console.error("[Cuadre] Error cargando ventas por vendedor:", error);
+            return rows;
+        }
+
+        rows.push(...((data as SalesLineForSeller[]) || []));
+        if (!data || data.length < pageSize) break;
+    }
+
+    return rows;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function CuadreDiarioPage() {
@@ -126,7 +149,7 @@ export default function CuadreDiarioPage() {
         const start = new Date(`${selectedDate}T00:00:00`).toISOString();
         const end = new Date(`${selectedDate}T23:59:59.999`).toISOString();
 
-        const [ordersRes, driversRes, closureRes, salesRes] = await Promise.all([
+        const [ordersRes, driversRes, closureRes, salesRows] = await Promise.all([
             supabase
                 .from("orders")
                 .select("*, delivery_drivers(id, full_name, vehicle_plate, phone, is_active)")
@@ -139,15 +162,12 @@ export default function CuadreDiarioPage() {
                 .select("*")
                 .eq("business_date", selectedDate)
                 .maybeSingle(),
-            supabase
-                .from("sales_lines")
-                .select("db_source, tipodoc, numero, id_vendedor, total")
-                .eq("fecha", selectedDate),
+            fetchSalesLinesForSellerClosure(selectedDate),
         ]);
 
         if (!ordersRes.error) setOrders((ordersRes.data as Order[]) || []);
         if (!driversRes.error) setDrivers((driversRes.data as DeliveryDriver[]) || []);
-        setSalesLines(!salesRes.error ? ((salesRes.data as SalesLineForSeller[]) || []) : []);
+        setSalesLines(salesRows);
         if (!closureRes.error && closureRes.data) {
             const savedClosure = closureRes.data as DailyCashClosure;
             setClosure(savedClosure);
@@ -546,6 +566,11 @@ export default function CuadreDiarioPage() {
                     >
                         Cuadre por vendedor
                     </button>
+                    {activeTab === "sellers" && (
+                        <span className="text-xs text-muted-foreground">
+                            {salesLines.length.toLocaleString("es-CO")} lineas sincronizadas
+                        </span>
+                    )}
                 </div>
 
                 {/* ── DRIVER GROUPS ── */}
