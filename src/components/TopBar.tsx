@@ -20,7 +20,8 @@ import {
     Archive,
     Store,
     ChevronDown,
-    ClipboardList
+    ClipboardList,
+    Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRoleMeta } from "@/lib/user-roles";
@@ -287,6 +288,10 @@ export function TopBar() {
                                         <Link href="/configuracion" className="flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-muted/50 transition-colors">
                                             <Settings className="w-4 h-4 text-muted-foreground" />
                                             Preferencias
+                                        </Link>
+                                        <Link href="/acerca-de" className="flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-muted/50 transition-colors">
+                                            <Info className="w-4 h-4 text-muted-foreground" />
+                                            Acerca de
                                         </Link>
                                     </div>
                                     <div className="pt-1">

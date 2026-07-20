@@ -8,11 +8,11 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Fast Order - Granero los Paisas",
+  title: "Fast Order",
   icons: {
-    icon: "/brand/fastorder-icon-192.png",
-    shortcut: "/brand/fastorder-icon-192.png",
-    apple: "/brand/fastorder-icon-512.png",
+    icon: "/brand/fastorder-icon-tab-192.png",
+    shortcut: "/brand/fastorder-icon-tab-192.png",
+    apple: "/brand/fastorder-icon-tab-512.png",
   },
   description: "Sistema ágil de gestión de pedidos",
 };
