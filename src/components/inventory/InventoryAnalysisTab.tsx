@@ -13,8 +13,7 @@ import {
     CoverageStats,
     ProblemProductRanking,
     InventoryValuation,
-    SessionDetail,
-    SessionDetailItem
+    SessionDetail
 } from '@/app/actions/inventory-analytics';
 import { 
     AlertTriangle, 
@@ -113,8 +112,8 @@ export function InventoryAnalysisTab() {
             setSessions(sessRes);
             setRanking(rankRes);
             setValuation(valRes);
-        } catch (err: any) {
-            setErrorMsg(err.message || 'Error inesperado al cargar la analítica.');
+        } catch (err) {
+            setErrorMsg(err instanceof Error ? err.message : 'Error inesperado al cargar la analitica.');
         } finally {
             setLoading(false);
         }
@@ -135,13 +134,13 @@ export function InventoryAnalysisTab() {
 
     if (errorMsg) {
         return (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-center space-y-3 max-w-lg mx-auto">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6 text-center space-y-3 max-w-lg mx-auto">
                 <AlertTriangle className="w-12 h-12 text-red-500 mx-auto" />
                 <h3 className="text-white font-bold text-lg">Error de Carga</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">{errorMsg}</p>
                 <button 
                     onClick={loadData}
-                    className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-xl transition-all"
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg transition-all"
                 >
                     Reintentar
                 </button>
@@ -156,11 +155,11 @@ export function InventoryAnalysisTab() {
                 <motion.div 
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="lg:col-span-1 bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-md flex flex-col justify-between"
+                    className="lg:col-span-1 bg-card border border-border rounded-lg p-4 backdrop-blur-md flex flex-col justify-between"
                 >
                     <div>
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2.5 bg-emerald-500/20 rounded-xl">
+                            <div className="p-2.5 bg-emerald-500/20 rounded-lg">
                                 <Layers className="w-5 h-5 text-emerald-400" />
                             </div>
                             <h3 className="text-gray-300 text-sm font-bold uppercase tracking-wider">Cobertura de Catálogo</h3>
@@ -194,11 +193,11 @@ export function InventoryAnalysisTab() {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="lg:col-span-2 bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-md flex flex-col justify-between"
+                    className="lg:col-span-2 bg-card border border-border rounded-lg p-4 backdrop-blur-md flex flex-col justify-between"
                 >
                     <div>
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2.5 bg-amber-500/20 rounded-xl">
+                            <div className="p-2.5 bg-amber-500/20 rounded-lg">
                                 <DollarSign className="w-5 h-5 text-amber-400" />
                             </div>
                             <h3 className="text-gray-300 text-sm font-bold uppercase tracking-wider">Valor Estimado de Descuadres</h3>
@@ -213,7 +212,7 @@ export function InventoryAnalysisTab() {
                             Magnitud económica agregada de las discrepancias físicas vs el stock del sistema en base a su costo promedio de adquisición (`cost_avg`). Ayuda a dimensionar la merma total en pesos colombianos.
                         </p>
                     </div>
-                    <div className="mt-6 flex justify-between items-center text-xs text-gray-500 border-t border-white/5 pt-4">
+                    <div className="mt-6 flex justify-between items-center text-xs text-gray-500 border-t border-border pt-4">
                         <span>SESIONES AGREGADAS: {sessions.length}</span>
                         <span>DISCREPANCIAS TOTALES: {sessions.reduce((acc, s) => acc + s.discrepancies, 0)}</span>
                     </div>
@@ -225,10 +224,10 @@ export function InventoryAnalysisTab() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-md space-y-4"
+                className="bg-card border border-border rounded-lg p-4 backdrop-blur-md space-y-4"
             >
                 <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-emerald-500/20 rounded-xl">
+                    <div className="p-2.5 bg-emerald-500/20 rounded-lg">
                         <Layers className="w-5 h-5 text-emerald-400" />
                     </div>
                     <div>
@@ -240,7 +239,7 @@ export function InventoryAnalysisTab() {
 
                 {/* Alerta de costos unitarios sospechosos (outliers) */}
                 {valuation && valuation.suspiciousCostItems && valuation.suspiciousCostItems.length > 0 && (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 space-y-2 text-red-300">
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 space-y-2 text-red-300">
                         <div className="flex items-center gap-2 font-semibold text-xs uppercase tracking-wider">
                             <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
                             <span>{valuation.suspiciousCostItems.length} producto(s) con costo unitario sospechoso excluido(s)</span>
@@ -259,22 +258,22 @@ export function InventoryAnalysisTab() {
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-black/30 border border-white/5 rounded-xl p-4 space-y-1">
+                    <div className="bg-black/30 border border-border rounded-lg p-4 space-y-1">
                         <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Valor Total Catálogo</span>
                         <p className="text-2xl font-extrabold text-white">{formatCOP(valuation?.totalInventoryValue || 0)}</p>
                         <p className="text-[9px] text-gray-500">Todo el stock del sistema no-servicio</p>
                     </div>
-                    <div className="bg-black/30 border border-white/5 rounded-xl p-4 space-y-1">
+                    <div className="bg-black/30 border border-border rounded-lg p-4 space-y-1">
                         <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Valor Contado (Auditado)</span>
                         <p className="text-2xl font-extrabold text-white">{formatCOP(valuation?.countedInventoryValue || 0)}</p>
                         <p className="text-[9px] text-gray-500">Productos contados al menos una vez</p>
                     </div>
-                    <div className="bg-black/30 border border-white/5 rounded-xl p-4 space-y-1">
+                    <div className="bg-black/30 border border-border rounded-lg p-4 space-y-1">
                         <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Costo Total Descuadres</span>
                         <p className="text-2xl font-extrabold text-amber-500">{formatCOP(valuation?.totalDiscrepancyValue || 0)}</p>
                         <p className="text-[9px] text-gray-500">Mermas y discrepancias detectadas</p>
                     </div>
-                    <div className="bg-black/30 border border-white/5 rounded-xl p-4 space-y-1">
+                    <div className="bg-black/30 border border-border rounded-lg p-4 space-y-1">
                         <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Porcentaje de Pérdida</span>
                         <p className="text-2xl font-extrabold text-red-400">
                             {valuation ? `${valuation.lossPercentage}%` : '0%'}
@@ -291,14 +290,14 @@ export function InventoryAnalysisTab() {
                 )}
 
                 {/* Nota aclaratoria financiera visible */}
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 space-y-1.5 text-amber-300">
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 space-y-1.5 text-amber-300">
                     <div className="flex items-start gap-2.5">
                         <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
                         <p className="text-[11px] leading-relaxed">
                             Estos valores son estimados a partir de costos promedio y conteos físicos operativos — <strong>no constituyen un estado financiero oficial</strong>. Para cifras contables consulta el ERP Milenium.
                         </p>
                     </div>
-                    <div className="text-[10px] text-gray-400 border-t border-white/5 pt-2 pl-6">
+                    <div className="text-[10px] text-gray-400 border-t border-border pt-2 pl-6">
                         {(() => {
                             const dbSourceNames = (valuation?.dbSourcesIncluded || []).map(src => {
                                 if (src === '01') return 'Empresa 1 (GRANESLOSPAISAS)';
@@ -320,10 +319,10 @@ export function InventoryAnalysisTab() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+                className="bg-card border border-border rounded-lg p-6 backdrop-blur-md"
             >
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2.5 bg-blue-500/20 rounded-xl">
+                    <div className="p-2.5 bg-blue-500/20 rounded-lg">
                         <TrendingUp className="w-5 h-5 text-blue-400" />
                     </div>
                     <div>
@@ -334,7 +333,7 @@ export function InventoryAnalysisTab() {
 
                 <div className="h-[300px] w-full">
                     {trend.length === 0 ? (
-                        <div className="h-full flex items-center justify-center border border-dashed border-white/10 rounded-xl">
+                        <div className="h-full flex items-center justify-center border border-dashed border-border rounded-lg">
                             <p className="text-gray-400 text-sm">Completa sesiones de conteo para visualizar la tendencia en el tiempo.</p>
                         </div>
                     ) : (
@@ -366,8 +365,8 @@ export function InventoryAnalysisTab() {
                                 <Tooltip 
                                     contentStyle={{ backgroundColor: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
                                     labelClassName="text-white text-xs font-bold"
-                                    formatter={(value: any, name: any) => {
-                                        if (name === 'discrepancy_value') return [formatCOP(value), 'Valor del Descuadre'];
+                                    formatter={(value, name) => {
+                                        if (name === 'discrepancy_value') return [formatCOP(Number(value)), 'Valor del Descuadre'];
                                         return [value, 'Cantidad de Descuadres'];
                                     }}
                                 />
@@ -404,7 +403,7 @@ export function InventoryAnalysisTab() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md flex flex-col"
+                    className="bg-card border border-border rounded-lg p-6 backdrop-blur-md flex flex-col"
                 >
                     <div className="flex items-center gap-3 mb-4">
                         <Calendar className="w-5 h-5 text-gray-400" />
@@ -417,7 +416,7 @@ export function InventoryAnalysisTab() {
                         ) : (
                             <table className="w-full text-left text-xs border-collapse">
                                 <thead>
-                                    <tr className="border-b border-white/5 text-gray-400 font-bold uppercase">
+                                    <tr className="border-b border-border text-gray-400 font-bold uppercase">
                                         <th className="pb-3 pr-2">Nombre / Modo</th>
                                         <th className="pb-3 pr-2">Categoría</th>
                                         <th className="pb-3 pr-2">Fecha</th>
@@ -431,7 +430,7 @@ export function InventoryAnalysisTab() {
                                         <tr 
                                             key={sess.session_id} 
                                             onClick={() => handleRowClick(sess.session_id)}
-                                            className="hover:bg-white/10 cursor-pointer transition-colors"
+                                            className="hover:bg-muted/40 cursor-pointer transition-colors"
                                         >
                                             <td className="py-3 pr-2 font-medium">
                                                 <div className="flex items-center gap-2">
@@ -473,7 +472,7 @@ export function InventoryAnalysisTab() {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md flex flex-col"
+                    className="bg-card border border-border rounded-lg p-6 backdrop-blur-md flex flex-col"
                 >
                     <div className="flex items-center gap-3 mb-4">
                         <AlertTriangle className="w-5 h-5 text-amber-400" />
@@ -485,7 +484,7 @@ export function InventoryAnalysisTab() {
 
                     <div className="overflow-x-auto flex-1 max-h-[400px] custom-scrollbar">
                         {ranking.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center py-10 border border-dashed border-white/5 rounded-xl text-center p-4">
+                            <div className="h-full flex flex-col items-center justify-center py-10 border border-dashed border-border rounded-lg text-center p-4">
                                 <AlertTriangle className="w-8 h-8 text-gray-500 mb-2" />
                                 <p className="text-gray-400 text-sm font-semibold">Aún no hay suficientes sesiones para detectar patrones.</p>
                                 <p className="text-gray-500 text-[10px] mt-1">Los productos aparecerán en este ranking si registran diferencias físicas en 2 o más sesiones independientes.</p>
@@ -493,7 +492,7 @@ export function InventoryAnalysisTab() {
                         ) : (
                             <table className="w-full text-left text-xs border-collapse">
                                 <thead>
-                                    <tr className="border-b border-white/5 text-gray-400 font-bold uppercase">
+                                    <tr className="border-b border-border text-gray-400 font-bold uppercase">
                                         <th className="pb-3 pr-2">Producto / SKU</th>
                                         <th className="pb-3 text-center">Sesiones</th>
                                         <th className="pb-3 text-right">Magnitud Acumulada</th>
@@ -501,7 +500,7 @@ export function InventoryAnalysisTab() {
                                 </thead>
                                 <tbody className="divide-y divide-white/5 text-gray-300">
                                     {ranking.map((prod) => (
-                                        <tr key={prod.item_master_id} className="hover:bg-white/5">
+                                        <tr key={prod.item_master_id} className="hover:bg-muted/20">
                                             <td className="py-3 pr-2">
                                                 <div className="space-y-0.5">
                                                     <span className="font-semibold line-clamp-1" title={prod.description}>{prod.description}</span>
@@ -531,7 +530,7 @@ export function InventoryAnalysisTab() {
                             initial={{ opacity: 0, scale: 0.95, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                            className="bg-slate-950 border border-white/10 w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh]"
+                            className="bg-background border border-border w-full max-w-4xl rounded-lg overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh]"
                         >
                             {/* Botón de cerrar */}
                             <button
@@ -553,7 +552,7 @@ export function InventoryAnalysisTab() {
                             ) : sessionDetail ? (
                                 <>
                                     {/* Header */}
-                                    <div className="p-6 border-b border-white/5 space-y-2">
+                                    <div className="p-6 border-b border-border space-y-2">
                                         <div className="flex items-center gap-3">
                                             <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${sessionDetail.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
                                                 {sessionDetail.status === 'completed' ? 'Completado' : 'En Curso'}
@@ -572,7 +571,7 @@ export function InventoryAnalysisTab() {
                                     </div>
 
                                     {/* Métricas consolidadas de la sesión */}
-                                    <div className="grid grid-cols-3 gap-4 px-6 py-4 bg-white/[0.02] border-b border-white/5">
+                                    <div className="grid grid-cols-3 gap-4 px-6 py-4 bg-muted/10 border-b border-border">
                                         <div className="space-y-1">
                                             <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Artículos Contados</span>
                                             <p className="text-xl font-extrabold text-white">{sessionDetail.items.length}</p>
@@ -580,22 +579,22 @@ export function InventoryAnalysisTab() {
                                         <div className="space-y-1">
                                             <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Productos con Diferencia</span>
                                             <p className="text-xl font-extrabold text-amber-500">
-                                                {sessionDetail.items.filter((it: any) => it.diferencia !== 0).length}
+                                                {sessionDetail.items.filter((it: SessionDetail['items'][number]) => it.diferencia !== 0).length}
                                             </p>
                                         </div>
                                         <div className="space-y-1">
                                             <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Valor de Descuadres</span>
                                             <p className="text-xl font-extrabold text-red-400">
-                                                {formatCOP(sessionDetail.items.reduce((acc: number, it: any) => acc + it.valor_descuadre, 0))}
+                                                {formatCOP(sessionDetail.items.reduce((acc: number, it: SessionDetail['items'][number]) => acc + it.valor_descuadre, 0))}
                                             </p>
                                         </div>
                                     </div>
 
                                     {/* Contenido / Detalle de ítems */}
                                     <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
-                                        <div className="border border-white/5 rounded-xl overflow-hidden">
+                                        <div className="border border-border rounded-lg overflow-hidden">
                                             <table className="w-full text-left text-xs border-collapse">
-                                                <thead className="bg-white/5 text-gray-400 font-bold uppercase">
+                                                <thead className="bg-muted/20 text-gray-400 font-bold uppercase">
                                                     <tr>
                                                         <th className="p-3 pr-2">Producto / SKU</th>
                                                         <th className="p-3 text-center">Esperado (ERP)</th>
@@ -606,10 +605,10 @@ export function InventoryAnalysisTab() {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-white/5 text-gray-300">
-                                                    {sessionDetail.items.map((item: any, idx: number) => {
+                                                    {sessionDetail.items.map((item: SessionDetail['items'][number], idx: number) => {
                                                         const hasDiscrepancy = item.diferencia !== 0;
                                                         return (
-                                                            <tr key={idx} className={`hover:bg-white/[0.02] ${hasDiscrepancy ? 'bg-amber-500/[0.03]' : ''}`}>
+                                                            <tr key={idx} className={`hover:bg-muted/10 ${hasDiscrepancy ? 'bg-amber-500/[0.03]' : ''}`}>
                                                                 <td className="p-3 pr-2">
                                                                     <div className="space-y-0.5">
                                                                         <div className="flex items-center gap-1.5">
@@ -655,13 +654,13 @@ export function InventoryAnalysisTab() {
                                     </div>
 
                                     {/* Footer */}
-                                    <div className="p-4 border-t border-white/5 bg-slate-950 flex justify-end">
+                                    <div className="p-4 border-t border-border bg-background flex justify-end">
                                         <button
                                             onClick={() => {
                                                 setSelectedSessionId(null);
                                                 setSessionDetail(null);
                                             }}
-                                            className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-2 px-5 rounded-xl transition-all text-xs"
+                                            className="bg-muted/20 hover:bg-muted/40 border border-border text-white font-bold py-2 px-5 rounded-lg transition-all text-xs"
                                         >
                                             Cerrar Detalle
                                         </button>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -19,10 +20,10 @@ import {
     Archive,
     Store,
     ChevronDown,
-    Truck,
     ClipboardList
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getRoleMeta } from "@/lib/user-roles";
 
 export function TopBar() {
     const pathname = usePathname();
@@ -87,6 +88,7 @@ export function TopBar() {
         await supabase.auth.signOut();
         router.push('/login');
     };
+    const roleMeta = getRoleMeta(userRole);
 
     // Navigation Modules (The Grid)
     const modules = [
@@ -166,10 +168,16 @@ export function TopBar() {
             <div className="flex h-full items-center px-6 container mx-auto max-w-7xl justify-between">
                 {/* 1. Left: Brand */}
                 <Link href="/pedidos" className="flex items-center gap-3 group" title="Ir al Inicio">
-                    <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-brand to-brand/80 flex items-center justify-center font-black text-black shadow-md group-hover:shadow-lg transition-all group-hover:scale-105">
-                        FO
+                    <div className="relative h-12 w-44 transition-transform group-hover:scale-[1.02] sm:w-52">
+                        <Image
+                            src="/brand/fastorder-logo-horizontal-ui.png"
+                            alt="Fast Order"
+                            fill
+                            priority
+                            sizes="208px"
+                            className="object-contain object-left"
+                        />
                     </div>
-                    <span className="hidden md:block font-bold text-lg tracking-tight">Fast Order</span>
                 </Link>
 
                 {/* 2. Center: Context (Breadcrumbs Placeholders for now) */}
@@ -254,7 +262,7 @@ export function TopBar() {
                             </div>
                             <div className="hidden lg:flex flex-col items-start text-xs">
                                 <span className="font-semibold text-foreground max-w-[100px] truncate">{userName}</span>
-                                <span className="text-muted-foreground capitalize">{userRole}</span>
+                                <span className="text-muted-foreground">{roleMeta.shortLabel}</span>
                             </div>
                             <ChevronDown className="w-4 h-4 text-muted-foreground hidden lg:block" />
                         </button>
@@ -269,7 +277,7 @@ export function TopBar() {
                                 >
                                     <div className="px-2 py-1.5 pb-2">
                                         <p className="text-sm font-semibold">{userName}</p>
-                                        <p className="text-xs text-muted-foreground truncate">{userRole || 'Usuario'}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{roleMeta.label}</p>
                                     </div>
                                     <div className="py-1">
                                         <Link href="/perfil" className="flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-muted/50 transition-colors">

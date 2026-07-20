@@ -9,6 +9,11 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Fast Order - Granero los Paisas",
+  icons: {
+    icon: "/brand/fastorder-icon-192.png",
+    shortcut: "/brand/fastorder-icon-192.png",
+    apple: "/brand/fastorder-icon-512.png",
+  },
   description: "Sistema ágil de gestión de pedidos",
 };
 

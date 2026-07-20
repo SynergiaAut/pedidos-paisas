@@ -1,5 +1,4 @@
-import { motion } from 'framer-motion';
-import { Star, Heart, Sparkles, AlertTriangle, Moon } from 'lucide-react';
+import { AlertTriangle, Heart, Moon, Sparkles, Star, type LucideIcon } from 'lucide-react';
 
 interface RFMBadgeProps {
     segment: string;
@@ -7,7 +6,7 @@ interface RFMBadgeProps {
     showScore?: boolean;
 }
 
-const segmentConfig: Record<string, { label: string; colorClasses: string; icon: any }> = {
+const segmentConfig: Record<string, { label: string; colorClasses: string; icon: LucideIcon }> = {
     'CHAMPIONS': {
         label: 'Champions',
         colorClasses: 'bg-purple-500/10 text-purple-400 border-purple-500/30',

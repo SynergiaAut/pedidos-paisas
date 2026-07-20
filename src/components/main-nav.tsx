@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -7,6 +8,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LogOut, Shield, Package, Plus, Users } from "lucide-react";
+import { getRoleMeta } from "@/lib/user-roles";
 
 export function MainNav() {
     const pathname = usePathname();
@@ -40,6 +42,7 @@ export function MainNav() {
         await supabase.auth.signOut();
         router.push('/login');
     };
+    const roleMeta = getRoleMeta(userRole);
 
     const routes = [
         {
@@ -71,8 +74,15 @@ export function MainNav() {
             <div className="flex h-14 items-center px-6 container mx-auto max-w-7xl">
                 {/* Logo */}
                 <Link href="/pedidos" className="flex items-center gap-3 mr-8 group" title="Ir al Inicio">
-                    <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-brand to-brand/80 flex items-center justify-center font-black text-black shadow-md group-hover:shadow-lg transition-shadow">
-                        FO
+                    <div className="relative h-11 w-44 transition-transform group-hover:scale-[1.02]">
+                        <Image
+                            src="/brand/fastorder-logo-horizontal-ui.png"
+                            alt="Fast Order"
+                            fill
+                            priority
+                            sizes="176px"
+                            className="object-contain object-left"
+                        />
                     </div>
                 </Link>
 
@@ -106,7 +116,7 @@ export function MainNav() {
                                     userRole === 'admin' ? "text-brand" : "text-muted-foreground"
                                 )}>
                                     {userRole === 'admin' && <Shield className="h-2.5 w-2.5 inline mr-0.5" />}
-                                    {userRole}
+                                    {roleMeta.shortLabel}
                                 </span>
                             )}
                         </div>

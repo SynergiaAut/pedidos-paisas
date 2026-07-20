@@ -1,8 +1,18 @@
 export async function register() {
     if (process.env.NEXT_RUNTIME === 'nodejs') {
         const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
+        const backgroundJobsDisabled = process.env.DISABLE_BACKGROUND_JOBS === 'true';
+
+        if (backgroundJobsDisabled) {
+            console.log('[Instrumentation] Jobs en segundo plano desactivados por DISABLE_BACKGROUND_JOBS=true.');
+            return;
+        }
         
-        const globalCron = global as any;
+        const globalCron = globalThis as typeof globalThis & {
+            inventorySyncCronRegistered?: boolean;
+            salesSyncCronRegistered?: boolean;
+            salesSnapshotCronRegistered?: boolean;
+        };
         const cronOptions = { timezone: 'America/Bogota' };
         
         // 1. Cron de Inventario

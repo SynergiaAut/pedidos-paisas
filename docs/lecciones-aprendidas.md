@@ -74,3 +74,20 @@ Registro vivo. Agregar al cierre de cada sesión significativa.
 **Cuadre**
 3. **Cuadre de caja, despacho y vendedor son dominios distintos:** `orders` sirve para logÃ­stica/despacho; `sales_lines` sirve para facturaciÃ³n real del ERP; `daily_cash_closures` sirve para registrar el conteo operativo de caja. Mezclarlos en una sola lectura produce falsos faltantes o cifras difÃ­ciles de explicar.
 4. **Un pedido pendiente no es faltante de caja:** el esperado del cierre debe sumar solo pedidos `ENTREGADO`/`PAGADO`; lo pendiente se muestra aparte como carga operativa, no como diferencia negativa.
+## Sesion 2026-07-19 (usuarios, perfiles y desarrollo local)
+
+**Operacion local**
+1. **La UI local no siempre debe ejecutar jobs de produccion:** los crons de inventario, ventas y snapshots son correctos en servidor, pero en desarrollo pueden fallar por red o credenciales y confundir la validacion visual. `DISABLE_BACKGROUND_JOBS=true` permite levantar Next para trabajar interfaz sin tocar los ciclos automaticos.
+
+**Perfiles**
+2. **Roles operativos antes que roles genericos:** `admin`/`user` no describe el trabajo real del granero. Separar `pedidos`, `despacho`, `inventario`, `cuadre` y `analitica` prepara permisos claros sin romper usuarios heredados.
+3. **Editar perfiles desde el browser es demasiado sensible:** la administracion de usuarios debe pasar por Server Actions con verificacion de admin y `service_role`, dejando la UI como capa de intencion y no como autoridad directa sobre la tabla `profiles`.
+4. **Rol base y permisos granulares no son lo mismo:** el rol ayuda a clasificar el cargo operativo, pero los accesos reales deben poder ajustarse por persona. `profiles.app_permissions` permite que alguien de pedidos tenga CRM, o que cuadre tenga analitica, sin crear un rol nuevo por cada combinacion.
+
+## Sesion 2026-07-20 (ADN visual FastOrder, logo oficial y login)
+
+**Identidad visual**
+1. **El logo oficial necesita una version UI recortada:** los PNG originales traen mucho margen interno; usarlos directo en la barra hace que el emblema se vea diminuto aunque el contenedor sea grande. Se genero `public/brand/fastorder-logo-horizontal-ui.png` para interfaces.
+2. **El amarillo de marca debe ser acento, no superficie dominante:** en permisos, tarjetas repetidas y login, demasiado `brand` satura la pantalla. El ADN FastOrder se sostiene mejor con azul noche, bordes sobrios y amarillo reservado para acciones/jerarquia.
+3. **Un login premium debe pertenecer al mismo sistema visual que la app:** el efecto de entrada no puede sentirse como demo aislado. `DottedSurface` se adapto a una paleta azul oscura, con glass transparente y puntos finos como textura, no como protagonista.
+4. **Integrar componentes de 21st por copy-paste evita depender de claves en produccion:** las API keys no deben quedar en codigo ni docs. Cuando el componente es visual, versionarlo localmente en `src/components/ui` da control, auditoria y despliegue estable.

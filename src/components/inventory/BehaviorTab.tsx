@@ -20,9 +20,7 @@ import {
     AlertTriangle, 
     Search, 
     Loader2, 
-    ChevronRight, 
     ArrowRight,
-    Tag,
     Layers,
     Info,
     CheckCircle2
@@ -97,7 +95,7 @@ export function BehaviorTab() {
             } else {
                 setDailySummary(null);
             }
-        } catch (e) {
+        } catch {
             setIntradayError('Error al recuperar datos intradía.');
             setDailySummary(null);
         } finally {
@@ -124,7 +122,7 @@ export function BehaviorTab() {
             } else {
                 setStats(result);
             }
-        } catch (e) {
+        } catch {
             setErrorMsg('Error al conectar con el servidor.');
         } finally {
             setLoading(false);
@@ -150,7 +148,7 @@ export function BehaviorTab() {
             } else {
                 setProductDetail(result);
             }
-        } catch (e) {
+        } catch {
             setDetailError('Error al recuperar detalles del producto.');
         } finally {
             setSearchingDetail(false);
@@ -222,7 +220,7 @@ export function BehaviorTab() {
     return (
         <div className="space-y-8">
             {/* --- SECCIÓN A: MONITOREO EN TIEMPO REAL (INTRADÍA) --- */}
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md space-y-6">
+            <div className="bg-card border border-border rounded-lg p-6 backdrop-blur-md space-y-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h3 className="text-white font-bold text-lg flex items-center gap-2">
@@ -238,7 +236,7 @@ export function BehaviorTab() {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                        <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
+                        <div className="flex bg-background border border-border rounded-lg p-0.5">
                             {([
                                 ['live', 'En vivo'],
                                 ['day', 'Dia'],
@@ -253,7 +251,7 @@ export function BehaviorTab() {
                                     }}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                         monitorMode === value
-                                            ? 'bg-blue-600 text-white font-bold'
+                                            ? 'bg-brand text-black font-bold'
                                             : 'text-gray-400 hover:text-white'
                                     }`}
                                 >
@@ -267,16 +265,16 @@ export function BehaviorTab() {
                             value={intradayDate}
                             max={new Date().toISOString().split('T')[0]}
                             onChange={(e) => setIntradayDate(e.target.value)}
-                            className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
+                            className="bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
                         />
 
-                        <div className={`flex bg-slate-900 border border-white/10 rounded-xl p-0.5 ${monitorMode !== 'live' ? 'opacity-50' : ''}`}>
+                        <div className={`flex bg-background border border-border rounded-lg p-0.5 ${monitorMode !== 'live' ? 'opacity-50' : ''}`}>
                             <button 
                                 disabled={monitorMode !== 'live'}
                                 onClick={() => setIntradayViewMode('cumulative')}
                                 className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
                                     intradayViewMode === 'cumulative' 
-                                        ? 'bg-emerald-600 text-white' 
+                                        ? 'bg-brand text-black' 
                                         : 'text-gray-400 hover:text-white'
                                 }`}
                             >
@@ -287,7 +285,7 @@ export function BehaviorTab() {
                                 onClick={() => setIntradayViewMode('delta')}
                                 className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
                                     intradayViewMode === 'delta' 
-                                        ? 'bg-emerald-600 text-white' 
+                                        ? 'bg-brand text-black' 
                                         : 'text-gray-400 hover:text-white'
                                 }`}
                             >
@@ -298,7 +296,7 @@ export function BehaviorTab() {
                 </div>
 
                 {monitorMode !== 'live' ? (
-                    <div className="min-h-72 bg-white/5 border border-white/5 rounded-2xl p-5 space-y-4">
+                    <div className="min-h-72 bg-muted/20 border border-border rounded-lg p-5 space-y-4">
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                             <div className="flex items-start gap-2">
                                 <ShoppingBag className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
@@ -333,7 +331,7 @@ export function BehaviorTab() {
                                             cursor={{ fill: 'rgba(16, 185, 129, 0.06)' }}
                                             contentStyle={{ backgroundColor: '#08111f', borderColor: 'rgba(16,185,129,0.22)', borderRadius: '12px', boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}
                                             labelClassName="text-gray-400 text-xs font-bold"
-                                            formatter={(value: any) => [formatCOP(Number(value)), 'Venta Bruta']}
+                                            formatter={(value) => [formatCOP(Number(value)), 'Venta Bruta']}
                                         />
                                         <Bar dataKey="total" name="Venta Bruta" fill="url(#monitorSalesBar)" radius={[6, 6, 2, 2]} maxBarSize={54} />
                                     </BarChart>
@@ -347,17 +345,17 @@ export function BehaviorTab() {
 
                         {dailySummary && dailySummary.line_count > 0 && (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
-                                <div className="bg-slate-950/60 border border-white/10 rounded-xl p-3 text-left">
+                                <div className="bg-background/60 border border-border rounded-lg p-3 text-left">
                                     <span className="text-[10px] text-gray-500 block font-bold uppercase">BD1 Interna</span>
                                     <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_01)}</span>
                                     <span className="text-[10px] text-gray-500">{dailySummary.unidades_01.toLocaleString('es-CO')} unidades</span>
                                 </div>
-                                <div className="bg-slate-950/60 border border-white/10 rounded-xl p-3 text-left">
+                                <div className="bg-background/60 border border-border rounded-lg p-3 text-left">
                                     <span className="text-[10px] text-gray-500 block font-bold uppercase">BD2 Fiscal</span>
                                     <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_02)}</span>
                                     <span className="text-[10px] text-gray-500">{dailySummary.unidades_02.toLocaleString('es-CO')} unidades</span>
                                 </div>
-                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-left">
+                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 text-left">
                                     <span className="text-[10px] text-emerald-300 block font-bold uppercase">Total fecha seleccionada</span>
                                     <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_all)}</span>
                                     <span className="text-[10px] text-emerald-200/70">{dailySummary.line_count.toLocaleString('es-CO')} lineas facturadas</span>
@@ -371,11 +369,11 @@ export function BehaviorTab() {
                         <span className="text-xs">Cargando serie intradía...</span>
                     </div>
                 ) : intradayError ? (
-                    <div className="h-72 flex items-center justify-center text-red-400 text-xs bg-red-500/5 rounded-2xl border border-red-500/10">
+                    <div className="h-72 flex items-center justify-center text-red-400 text-xs bg-red-500/5 rounded-lg border border-red-500/10">
                         {intradayError}
                     </div>
                 ) : intradayData.length === 0 ? (
-                    <div className="min-h-72 bg-white/5 border border-white/5 rounded-2xl p-5 space-y-4">
+                    <div className="min-h-72 bg-muted/20 border border-border rounded-lg p-5 space-y-4">
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                             <div className="flex items-start gap-2">
                                 <Info className="w-4 h-4 text-gray-500 mt-0.5 shrink-0" />
@@ -385,7 +383,7 @@ export function BehaviorTab() {
                                 </div>
                             </div>
 
-                            <div className="flex bg-slate-950/80 border border-white/10 rounded-xl p-0.5 w-fit">
+                            <div className="flex bg-background/80 border border-border rounded-lg p-0.5 w-fit">
                                 {([
                                     ['day', 'Día'],
                                     ['week', 'Semana'],
@@ -396,7 +394,7 @@ export function BehaviorTab() {
                                         onClick={() => setHistoryGroup(value)}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                             historyGroup === value
-                                                ? 'bg-blue-600 text-white font-bold'
+                                                ? 'bg-brand text-black font-bold'
                                                 : 'text-gray-400 hover:text-white'
                                         }`}
                                     >
@@ -428,7 +426,7 @@ export function BehaviorTab() {
                                             cursor={{ fill: 'rgba(16, 185, 129, 0.06)' }}
                                             contentStyle={{ backgroundColor: '#08111f', borderColor: 'rgba(16,185,129,0.22)', borderRadius: '12px', boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}
                                             labelClassName="text-gray-400 text-xs font-bold"
-                                            formatter={(value: any) => [formatCOP(Number(value)), 'Venta Bruta']}
+                                            formatter={(value) => [formatCOP(Number(value)), 'Venta Bruta']}
                                         />
                                         <Bar dataKey="total" name="Venta Bruta" fill="url(#fallbackSalesBar)" radius={[6, 6, 2, 2]} maxBarSize={54} />
                                     </BarChart>
@@ -442,17 +440,17 @@ export function BehaviorTab() {
 
                         {dailySummary && dailySummary.line_count > 0 && (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
-                                <div className="bg-slate-950/60 border border-white/10 rounded-xl p-3 text-left">
+                                <div className="bg-background/60 border border-border rounded-lg p-3 text-left">
                                     <span className="text-[10px] text-gray-500 block font-bold uppercase">BD1 Interna</span>
                                     <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_01)}</span>
                                     <span className="text-[10px] text-gray-500">{dailySummary.unidades_01.toLocaleString('es-CO')} unidades</span>
                                 </div>
-                                <div className="bg-slate-950/60 border border-white/10 rounded-xl p-3 text-left">
+                                <div className="bg-background/60 border border-border rounded-lg p-3 text-left">
                                     <span className="text-[10px] text-gray-500 block font-bold uppercase">BD2 Fiscal</span>
                                     <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_02)}</span>
                                     <span className="text-[10px] text-gray-500">{dailySummary.unidades_02.toLocaleString('es-CO')} unidades</span>
                                 </div>
-                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-left">
+                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 text-left">
                                     <span className="text-[10px] text-emerald-300 block font-bold uppercase">Total del día</span>
                                     <span className="text-white text-base font-bold block mt-1">{formatCOP(dailySummary.venta_all)}</span>
                                     <span className="text-[10px] text-emerald-200/70">{dailySummary.line_count.toLocaleString('es-CO')} líneas facturadas</span>
@@ -463,7 +461,7 @@ export function BehaviorTab() {
                 ) : (
                     <div className="min-h-72 w-full">
                         {shouldShowDeltaWaitingState ? (
-                            <div className="h-72 flex flex-col items-center justify-center bg-white/5 border border-white/5 rounded-2xl text-center px-6">
+                            <div className="h-72 flex flex-col items-center justify-center bg-muted/20 border border-border rounded-lg text-center px-6">
                                 <Activity className="w-6 h-6 text-emerald-400 mb-3" />
                                 <h4 className="text-white font-bold text-sm">Monitor activo desde {initialSyncPoint?.hora || 'el ultimo corte'}</h4>
                                 <p className="text-gray-500 text-xs mt-2 max-w-xl">
@@ -498,7 +496,7 @@ export function BehaviorTab() {
                                     <Tooltip 
                                         contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
                                         labelClassName="text-gray-400 text-xs font-bold"
-                                        formatter={(value: any, name: any) => [formatCOP(Number(value)), String(name)]}
+                                        formatter={(value, name) => [formatCOP(Number(value)), String(name)]}
                                     />
                                     <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
                                     <Area 
@@ -548,7 +546,7 @@ export function BehaviorTab() {
                                         cursor={{ fill: 'rgba(16, 185, 129, 0.06)' }}
                                         contentStyle={{ backgroundColor: '#08111f', borderColor: 'rgba(16,185,129,0.22)', borderRadius: '12px', boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}
                                         labelClassName="text-gray-400 text-xs font-bold"
-                                        formatter={(value: any, name: any) => [formatCOP(Number(value)), String(name)]}
+                                        formatter={(value, name) => [formatCOP(Number(value)), String(name)]}
                                     />
                                     <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
                                     <Bar
@@ -597,7 +595,7 @@ export function BehaviorTab() {
                 )}
             </div>
 
-            <div className="border-t border-white/10 my-6"></div>
+            <div className="border-t border-border my-6"></div>
 
             {/* --- SECCIÓN B: ANÁLISIS HISTÓRICO Y RENTABILIDAD --- */}
             <div className="space-y-6">
@@ -612,12 +610,12 @@ export function BehaviorTab() {
 
                     {/* Controles de Filtros Históricos */}
                     <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                        <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
+                        <div className="flex bg-background border border-border rounded-lg p-0.5">
                             <button 
                                 onClick={() => setPeriodDays(7)}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                     periodDays === 7 
-                                        ? 'bg-emerald-600 text-white font-bold' 
+                                        ? 'bg-brand text-black font-bold' 
                                         : 'text-gray-400 hover:text-white'
                                 }`}
                             >
@@ -627,7 +625,7 @@ export function BehaviorTab() {
                                 onClick={() => setPeriodDays(30)}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                     periodDays === 30 
-                                        ? 'bg-emerald-600 text-white font-bold' 
+                                        ? 'bg-brand text-black font-bold' 
                                         : 'text-gray-400 hover:text-white'
                                 }`}
                             >
@@ -637,7 +635,7 @@ export function BehaviorTab() {
                                 onClick={() => setPeriodDays(90)}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                     periodDays === 90 
-                                        ? 'bg-emerald-600 text-white font-bold' 
+                                        ? 'bg-brand text-black font-bold' 
                                         : 'text-gray-400 hover:text-white'
                                 }`}
                             >
@@ -645,7 +643,7 @@ export function BehaviorTab() {
                             </button>
                         </div>
 
-                        <div className="flex bg-slate-900 border border-white/10 rounded-xl p-0.5">
+                        <div className="flex bg-background border border-border rounded-lg p-0.5">
                             {([
                                 ['day', 'Dia'],
                                 ['week', 'Semana'],
@@ -656,7 +654,7 @@ export function BehaviorTab() {
                                     onClick={() => setHistoryGroup(value)}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                         historyGroup === value
-                                            ? 'bg-blue-600 text-white font-bold'
+                                            ? 'bg-brand text-black font-bold'
                                             : 'text-gray-400 hover:text-white'
                                     }`}
                                 >
@@ -668,7 +666,7 @@ export function BehaviorTab() {
                         <select 
                             value={selectedClassification}
                             onChange={(e) => setSelectedClassification(e.target.value)}
-                            className="bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 w-full lg:w-48 font-medium cursor-pointer"
+                            className="bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 w-full lg:w-48 font-medium cursor-pointer"
                         >
                             <option value="ALL">Todas las Categorías</option>
                             {stats?.classifications.map(cl => (
@@ -679,7 +677,7 @@ export function BehaviorTab() {
                 </div>
 
                 {errorMsg ? (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl p-6 text-center space-y-2">
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg p-6 text-center space-y-2">
                         <AlertTriangle className="w-8 h-8 mx-auto text-red-500" />
                         <h3 className="font-bold text-white text-lg">Error de Acceso</h3>
                         <p className="text-sm max-w-md mx-auto">{errorMsg}</p>
@@ -693,9 +691,9 @@ export function BehaviorTab() {
                     <div className="space-y-8">
                         {/* KPIs Aggregated Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all duration-500"></div>
-                            <div className="p-3 bg-blue-500/10 rounded-xl w-fit mb-4">
+                            <div className="bg-card border border-border rounded-lg p-5 backdrop-blur-md relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-brand/90/20 transition-all duration-500"></div>
+                            <div className="p-3 bg-blue-500/10 rounded-lg w-fit mb-4">
                                 <DollarSign className="w-5 h-5 text-blue-400" />
                             </div>
                             <span className="text-gray-400 text-xs font-semibold block">Total Facturado</span>
@@ -703,9 +701,9 @@ export function BehaviorTab() {
                             <span className="text-[10px] text-gray-500 mt-2 block">Bruto consolidado en el período</span>
                         </div>
 
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-500"></div>
-                            <div className="p-3 bg-emerald-500/10 rounded-xl w-fit mb-4">
+                        <div className="bg-card border border-border rounded-lg p-5 backdrop-blur-md relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-brand/90/20 transition-all duration-500"></div>
+                            <div className="p-3 bg-emerald-500/10 rounded-lg w-fit mb-4">
                                 <Activity className="w-5 h-5 text-emerald-400" />
                             </div>
                             <span className="text-gray-400 text-xs font-semibold block">Margen Promedio</span>
@@ -715,9 +713,9 @@ export function BehaviorTab() {
                             <span className="text-[10px] text-gray-500 mt-2 block">Excluyendo SKUs corruptos del ERP</span>
                         </div>
 
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group">
+                        <div className="bg-card border border-border rounded-lg p-5 backdrop-blur-md relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-full blur-2xl group-hover:bg-red-500/20 transition-all duration-500"></div>
-                            <div className="p-3 bg-red-500/10 rounded-xl w-fit mb-4">
+                            <div className="p-3 bg-red-500/10 rounded-lg w-fit mb-4">
                                 <TrendingDown className="w-5 h-5 text-red-400" />
                             </div>
                             <span className="text-gray-400 text-xs font-semibold block">Márgenes Negativos</span>
@@ -727,9 +725,9 @@ export function BehaviorTab() {
                             <span className="text-[10px] text-gray-500 mt-2 block">Productos vendidos por debajo de costo</span>
                         </div>
 
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group">
+                        <div className="bg-card border border-border rounded-lg p-5 backdrop-blur-md relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all duration-500"></div>
-                            <div className="p-3 bg-amber-500/10 rounded-xl w-fit mb-4">
+                            <div className="p-3 bg-amber-500/10 rounded-lg w-fit mb-4">
                                 <AlertTriangle className="w-5 h-5 text-amber-400" />
                             </div>
                             <span className="text-gray-400 text-xs font-semibold block">Rotación Nula (Dead Stock)</span>
@@ -740,7 +738,7 @@ export function BehaviorTab() {
 
                     {/* Gráficos de Tendencias */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+                        <div className="bg-card border border-border rounded-lg p-5 backdrop-blur-md">
                             <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
                                 <ShoppingBag className="w-4 h-4 text-blue-400" />
                                 Tendencia de Ventas Diarias
@@ -761,7 +759,7 @@ export function BehaviorTab() {
                                             cursor={{ fill: 'rgba(59, 130, 246, 0.07)' }}
                                             contentStyle={{ backgroundColor: '#08111f', borderColor: 'rgba(59,130,246,0.24)', borderRadius: '12px', boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}
                                             labelClassName="text-gray-400 text-xs"
-                                            formatter={(value: any) => [formatCOP(Number(value)), 'Venta Bruta']}
+                                            formatter={(value) => [formatCOP(Number(value)), 'Venta Bruta']}
                                         />
                                         <Bar dataKey="total" name="Venta Bruta" fill="url(#colorSales)" radius={[6, 6, 2, 2]} maxBarSize={54} />
                                     </BarChart>
@@ -769,7 +767,7 @@ export function BehaviorTab() {
                             </div>
                         </div>
 
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+                        <div className="bg-card border border-border rounded-lg p-5 backdrop-blur-md">
                             <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
                                 <Activity className="w-4 h-4 text-emerald-400" />
                                 Margen Diario Promedio
@@ -783,7 +781,7 @@ export function BehaviorTab() {
                                         <Tooltip 
                                             contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
                                             labelClassName="text-gray-400 text-xs"
-                                            formatter={(value: any) => [`${Number(value).toFixed(2)}%`, 'Margen']}
+                                            formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Margen']}
                                         />
                                         <Line type="monotone" dataKey="margenPct" stroke="#10b981" strokeWidth={2.5} dot={false} />
                                     </LineChart>
@@ -795,7 +793,7 @@ export function BehaviorTab() {
                     {/* Rankings Grid */}
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                         {/* Top Ventas */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+                        <div className="bg-card border border-border rounded-lg p-5 backdrop-blur-md">
                             <h3 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
                                 <TrendingUp className="w-4 h-4 text-emerald-400" />
                                 Más Vendidos (Top Ventas)
@@ -804,8 +802,8 @@ export function BehaviorTab() {
                                 <p className="text-gray-500 text-xs py-8 text-center">No hay registros de ventas en este período.</p>
                             ) : (
                                 <div className="space-y-3">
-                                    {stats.topSellers.map((s, idx) => (
-                                        <div key={s.sku} className="flex justify-between items-center p-2.5 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
+                                    {stats.topSellers.map((s) => (
+                                        <div key={s.sku} className="flex justify-between items-center p-2.5 rounded-lg hover:bg-muted/20 transition-colors border border-transparent hover:border-border">
                                             <div className="space-y-0.5 max-w-[70%]">
                                                 <span className="text-gray-400 text-[10px] font-mono">{s.sku}</span>
                                                 <p className="text-white text-xs font-semibold truncate">{s.descripcion}</p>
@@ -824,7 +822,7 @@ export function BehaviorTab() {
                         </div>
 
                         {/* Dead Stock */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+                        <div className="bg-card border border-border rounded-lg p-5 backdrop-blur-md">
                             <h3 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
                                 <AlertTriangle className="w-4 h-4 text-amber-400" />
                                 Rotación Nula (Dead Stock)
@@ -837,7 +835,7 @@ export function BehaviorTab() {
                             ) : (
                                 <div className="space-y-3">
                                     {stats.bottomSellers.map(s => (
-                                        <div key={s.sku} className="flex justify-between items-center p-2.5 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
+                                        <div key={s.sku} className="flex justify-between items-center p-2.5 rounded-lg hover:bg-muted/20 transition-colors border border-transparent hover:border-border">
                                             <div className="space-y-0.5 max-w-[70%]">
                                                 <span className="text-gray-400 text-[10px] font-mono">{s.sku}</span>
                                                 <p className="text-white text-xs font-semibold truncate">{s.descripcion}</p>
@@ -854,7 +852,7 @@ export function BehaviorTab() {
                         </div>
 
                         {/* Alerta Márgenes Críticos */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+                        <div className="bg-card border border-border rounded-lg p-5 backdrop-blur-md">
                             <h3 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
                                 <TrendingDown className="w-4 h-4 text-red-400" />
                                 Márgenes Críticos / Negativos
@@ -867,7 +865,7 @@ export function BehaviorTab() {
                             ) : (
                                 <div className="space-y-3">
                                     {stats.negativeMargins.map(s => (
-                                        <div key={s.sku} className="flex justify-between items-center p-2.5 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
+                                        <div key={s.sku} className="flex justify-between items-center p-2.5 rounded-lg hover:bg-muted/20 transition-colors border border-transparent hover:border-border">
                                             <div className="space-y-0.5 max-w-[70%]">
                                                 <span className="text-gray-400 text-[10px] font-mono">{s.sku}</span>
                                                 <p className="text-white text-xs font-semibold truncate">{s.descripcion}</p>
@@ -890,7 +888,7 @@ export function BehaviorTab() {
             </div>
 
             {/* Ficha de Producto (Drill-Down) */}
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md space-y-6">
+            <div className="bg-card border border-border rounded-lg p-6 backdrop-blur-md space-y-6">
                 <div>
                     <h3 className="text-white font-bold text-lg">Ficha de Producto</h3>
                     <p className="text-gray-400 text-xs mt-1">Busca un producto por SKU para auditar su rotación, rentabilidad e historial de descuadres cíclicos.</p>
@@ -904,13 +902,13 @@ export function BehaviorTab() {
                             placeholder="Buscar SKU (ej. 502089, 1002008)…" 
                             value={searchSku}
                             onChange={(e) => setSearchSku(e.target.value)}
-                            className="bg-slate-900 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 w-full h-11"
+                            className="bg-background border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 w-full h-11"
                         />
                     </div>
                     <button 
                         type="submit" 
                         disabled={searchingDetail || !searchSku.trim()}
-                        className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 rounded-xl text-sm font-bold flex items-center gap-1.5 h-11 shrink-0 transition-all"
+                        className="bg-emerald-600 hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 rounded-lg text-sm font-bold flex items-center gap-1.5 h-11 shrink-0 transition-all"
                     >
                         {searchingDetail ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -924,7 +922,7 @@ export function BehaviorTab() {
                 </form>
 
                 {detailError && (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl p-4 text-xs flex items-start gap-2 max-w-md">
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg p-4 text-xs flex items-start gap-2 max-w-md">
                         <Info className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                         <span>{detailError}</span>
                     </div>
@@ -936,12 +934,12 @@ export function BehaviorTab() {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 10 }}
-                            className="border border-white/5 bg-white/5 rounded-2xl p-5 space-y-6"
+                            className="border border-border bg-muted/20 rounded-lg p-5 space-y-6"
                         >
                             {/* Cabecera del producto */}
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-white/5">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-border">
                                 <div className="space-y-1">
-                                    <span className="text-gray-400 text-xs font-mono bg-white/5 border border-white/10 px-2.5 py-1 rounded-md">{productDetail.sku}</span>
+                                    <span className="text-gray-400 text-xs font-mono bg-card border border-border px-2.5 py-1 rounded-md">{productDetail.sku}</span>
                                     <h4 className="text-white font-bold text-xl mt-2">{productDetail.description}</h4>
                                     <div className="flex gap-4 text-gray-500 text-xs mt-1">
                                         <span>Categoría: <strong className="text-gray-300">{productDetail.classification || 'General'}</strong></span>
@@ -957,15 +955,15 @@ export function BehaviorTab() {
 
                             {/* Grid de Métricas del Producto */}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <div className="bg-slate-900/50 border border-white/5 rounded-xl p-4">
+                                <div className="bg-background/50 border border-border rounded-lg p-4">
                                     <span className="text-gray-400 text-[10px] font-bold block uppercase tracking-wider">Unidades Vendidas</span>
                                     <span className="text-xl font-bold text-white block mt-1">{productDetail.totalSoldQty} unds</span>
                                 </div>
-                                <div className="bg-slate-900/50 border border-white/5 rounded-xl p-4">
+                                <div className="bg-background/50 border border-border rounded-lg p-4">
                                     <span className="text-gray-400 text-[10px] font-bold block uppercase tracking-wider">Ingresos Facturados</span>
                                     <span className="text-xl font-bold text-white block mt-1">{formatCOP(productDetail.totalRevenue)}</span>
                                 </div>
-                                <div className="bg-slate-900/50 border border-white/5 rounded-xl p-4">
+                                <div className="bg-background/50 border border-border rounded-lg p-4">
                                     <span className="text-gray-400 text-[10px] font-bold block uppercase tracking-wider">Margen % Real</span>
                                     <span className={`text-xl font-bold block mt-1 ${
                                         CORRUPT_SKUS.includes(productDetail.sku) 
@@ -979,7 +977,7 @@ export function BehaviorTab() {
                                         {CORRUPT_SKUS.includes(productDetail.sku) ? 'CORRUPTO (ERP)' : `${productDetail.avgMarginPct.toFixed(2)}%`}
                                     </span>
                                 </div>
-                                <div className="bg-slate-900/50 border border-white/5 rounded-xl p-4">
+                                <div className="bg-background/50 border border-border rounded-lg p-4">
                                     <span className="text-gray-400 text-[10px] font-bold block uppercase tracking-wider">Stock (Sistema / Físico)</span>
                                     <span className="text-xl font-bold text-white block mt-1">
                                         {productDetail.systemStock} / <span className="text-emerald-400">{productDetail.physicalStock ?? '—'}</span>
@@ -989,7 +987,7 @@ export function BehaviorTab() {
 
                             {/* Gráfico e Historial de Ventas */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="bg-slate-900/30 border border-white/5 rounded-xl p-4">
+                                <div className="bg-background/30 border border-border rounded-lg p-4">
                                     <span className="text-white text-xs font-bold block mb-3 uppercase tracking-wider">Tendencia de Ventas (Cantidad)</span>
                                     {productDetail.salesTrend.length === 0 ? (
                                         <p className="text-gray-500 text-xs py-12 text-center">Este producto no registra ventas.</p>
@@ -1008,7 +1006,7 @@ export function BehaviorTab() {
                                                     <Tooltip 
                                                         contentStyle={{ backgroundColor: '#0f172a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}
                                                         labelClassName="text-gray-400 text-[10px]"
-                                                        formatter={(value: any) => [`${value} unidades`, 'Cantidad']}
+                                                        formatter={(value) => [`${value} unidades`, 'Cantidad']}
                                                     />
                                                     <Area type="monotone" dataKey="cantidad" stroke="#10b981" strokeWidth={1.5} fillOpacity={1} fill="url(#colorProdSales)" />
                                                 </AreaChart>
@@ -1017,7 +1015,7 @@ export function BehaviorTab() {
                                     )}
                                 </div>
 
-                                <div className="bg-slate-900/30 border border-white/5 rounded-xl p-4">
+                                <div className="bg-background/30 border border-border rounded-lg p-4">
                                     <span className="text-white text-xs font-bold block mb-3 uppercase tracking-wider">Últimas Transacciones de Venta</span>
                                     {productDetail.recentSales.length === 0 ? (
                                         <p className="text-gray-500 text-xs py-12 text-center">Sin transacciones registradas.</p>
@@ -1025,7 +1023,7 @@ export function BehaviorTab() {
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-left text-xs">
                                                 <thead>
-                                                    <tr className="text-gray-500 border-b border-white/5">
+                                                    <tr className="text-gray-500 border-b border-border">
                                                         <th className="pb-2 font-medium">Fecha</th>
                                                         <th className="pb-2 font-medium">Factura</th>
                                                         <th className="pb-2 font-medium text-right">Cant.</th>
@@ -1035,7 +1033,7 @@ export function BehaviorTab() {
                                                 </thead>
                                                 <tbody>
                                                     {productDetail.recentSales.map((s, i) => (
-                                                        <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                                                        <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                                                             <td className="py-2 text-gray-400">{s.fecha}</td>
                                                             <td className="py-2 text-white font-mono">{s.tipodoc}-{s.numero}</td>
                                                             <td className="py-2 text-white text-right font-bold">{s.cantidad}</td>
@@ -1061,7 +1059,7 @@ export function BehaviorTab() {
                             </div>
 
                             {/* Historial de Auditoría de Conteos Cíclicos */}
-                            <div className="bg-slate-900/30 border border-white/5 rounded-xl p-4">
+                            <div className="bg-background/30 border border-border rounded-lg p-4">
                                 <span className="text-white text-xs font-bold block mb-3 uppercase tracking-wider">Historial de Descuadres y Mermas (Conteo Cíclico)</span>
                                 {productDetail.countsHistory.length === 0 ? (
                                     <p className="text-gray-500 text-xs py-8 text-center">Este producto no ha sido registrado en ninguna sesión de conteo cíclico.</p>
@@ -1069,7 +1067,7 @@ export function BehaviorTab() {
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left text-xs">
                                             <thead>
-                                                <tr className="text-gray-500 border-b border-white/5">
+                                                <tr className="text-gray-500 border-b border-border">
                                                     <th className="pb-2 font-medium">Sesión</th>
                                                     <th className="pb-2 font-medium">Fecha</th>
                                                     <th className="pb-2 font-medium text-right">Stock Sistema</th>
@@ -1079,7 +1077,7 @@ export function BehaviorTab() {
                                             </thead>
                                             <tbody>
                                                 {productDetail.countsHistory.map((c, i) => (
-                                                    <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                                                    <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                                                         <td className="py-2 text-white font-semibold">{c.sessionName}</td>
                                                         <td className="py-2 text-gray-400">{new Date(c.countedAt).toLocaleDateString('es-CO')}</td>
                                                         <td className="py-2 text-white text-right">{c.mileniumStock}</td>

@@ -1,133 +1,117 @@
-import { Client } from '@/types/crm';
-import { motion } from 'framer-motion';
-import { Phone, Mail, MapPin, DollarSign, ShoppingBag, Calendar, TrendingUp } from 'lucide-react';
-import { RFMBadge } from './RFMBadge';
-import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { Calendar, DollarSign, Mail, MapPin, Phone, ShoppingBag, TrendingUp } from "lucide-react";
+import { Client } from "@/types/crm";
+import { cn } from "@/lib/utils";
+import { RFMBadge } from "./RFMBadge";
 
 interface ClientCardProps {
     client: Client;
 }
 
+function formatCurrency(value: number) {
+    return new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+        maximumFractionDigits: 0,
+    }).format(value || 0);
+}
+
+function formatDate(dateString?: string) {
+    if (!dateString) return "Sin registro";
+    return new Intl.DateTimeFormat("es-CO", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    }).format(new Date(dateString));
+}
+
+const segmentAccent: Record<string, string> = {
+    CHAMPIONS: "bg-violet-400",
+    LOYAL: "bg-blue-400",
+    POTENTIAL: "bg-emerald-400",
+    AT_RISK: "bg-orange-400",
+    HIBERNATING: "bg-slate-500",
+};
+
 export function ClientCard({ client }: ClientCardProps) {
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 0
-        }).format(value);
-    };
-
-    const formatDate = (dateString?: string) => {
-        if (!dateString) return 'Nunca';
-        return new Intl.DateTimeFormat('es-CO', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        }).format(new Date(dateString));
-    };
-
-    // Determinar color del borde izquierdo basado en RFM
-    let borderColor = "border-gray-600";
-    if (client.rfm_segment === 'CHAMPIONS') borderColor = "border-purple-500";
-    if (client.rfm_segment === 'LOYAL') borderColor = "border-blue-500";
-    if (client.rfm_segment === 'POTENTIAL') borderColor = "border-green-600";
-    if (client.rfm_segment === 'AT_RISK') borderColor = "border-orange-500";
+    const accent = segmentAccent[client.rfm_segment ?? ""] ?? "bg-brand";
 
     return (
         <Link href={`/crm/${client.id}`}>
-            <motion.div
+            <motion.article
                 layout
-                initial={{ opacity: 0, scale: 0.95, y: -20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
-                className={cn(
-                    "group relative rounded-xl border bg-card shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand/50 hover:bg-accent/5 cursor-pointer"
-                )}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.22 }}
+                className="group relative overflow-hidden rounded-lg border border-border bg-card transition hover:border-brand/45 hover:bg-muted/15"
             >
-                {/* Borde izquierdo de color - igual que pedidos */}
-                <div className={cn("hidden md:block w-2 h-full absolute left-0 top-0 bottom-0 rounded-l-xl", borderColor.replace('border', 'bg'))} />
+                <div className={cn("absolute left-0 top-0 h-full w-1", accent)} />
 
-                {/* Content */}
-                <div className="p-5 pl-6">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                            <h3 className="text-lg font-bold tracking-tight text-foreground group-hover:text-brand transition-colors">
+                <div className="p-4 pl-5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <h3 className="truncate text-base font-black tracking-tight text-white transition group-hover:text-brand">
                                 {client.full_name}
                             </h3>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs text-muted-foreground">
-                                    Desde {formatDate(client.created_at)}
-                                </span>
-                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">Desde {formatDate(client.created_at)}</p>
                         </div>
-                        {client.rfm_segment && (
-                            <RFMBadge segment={client.rfm_segment} score={client.rfm_score} />
-                        )}
+                        {client.rfm_segment && <RFMBadge segment={client.rfm_segment} score={client.rfm_score} />}
                     </div>
 
-                    {/* Contact Info */}
-                    <div className="space-y-1.5 mb-4">
+                    <div className="mt-4 space-y-2">
                         {client.phone && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Phone className="w-3.5 h-3.5" />
-                                <span>{client.phone}</span>
-                            </div>
+                            <p className="flex items-center gap-2 text-sm text-slate-300">
+                                <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="truncate">{client.phone}</span>
+                            </p>
                         )}
                         {client.email && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Mail className="w-3.5 h-3.5" />
+                            <p className="flex items-center gap-2 text-sm text-slate-300">
+                                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                                 <span className="truncate">{client.email}</span>
-                            </div>
+                            </p>
                         )}
                         {client.address && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <MapPin className="w-3.5 h-3.5" />
+                            <p className="flex items-center gap-2 text-sm text-slate-300">
+                                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                                 <span className="truncate">{client.address}</span>
-                            </div>
+                            </p>
                         )}
                     </div>
 
-                    {/* Metrics - Grid 2x2 */}
-                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                        <div>
-                            <div className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground uppercase mb-0.5">
-                                <ShoppingBag className="w-3 h-3" />
+                    <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-3">
+                        <div className="rounded-md border border-border bg-background/45 p-3">
+                            <p className="flex items-center gap-1 text-[10px] font-black uppercase text-muted-foreground">
+                                <ShoppingBag className="h-3 w-3" />
                                 Pedidos
-                            </div>
-                            <p className="text-lg font-bold text-foreground">{client.total_orders}</p>
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-1 text-[10px] font-semibold text-green-500 uppercase mb-0.5">
-                                <DollarSign className="w-3 h-3" />
-                                LTV (Total)
-                            </div>
-                            <p className="text-lg font-bold text-green-400">
-                                {formatCurrency(client.lifetime_value || 0)}
                             </p>
+                            <p className="mt-1 text-lg font-black text-white">{client.total_orders}</p>
                         </div>
-                        <div>
-                            <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 uppercase mb-0.5" title="Valor Promedio de Pedido">
-                                <TrendingUp className="w-3 h-3" />
-                                Ticket Prom.
-                            </div>
-                            <p className="text-lg font-bold text-blue-400">
-                                {formatCurrency(client.average_order_value || 0)}
+                        <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3">
+                            <p className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-300">
+                                <DollarSign className="h-3 w-3" />
+                                LTV
                             </p>
+                            <p className="mt-1 truncate text-lg font-black text-emerald-300">{formatCurrency(client.lifetime_value)}</p>
                         </div>
-                        <div>
-                            <div className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground uppercase mb-0.5">
-                                <Calendar className="w-3 h-3" />
-                                Último
-                            </div>
-                            <p className="text-xs font-medium text-foreground mt-1">
-                                {formatDate(client.last_order_date)}
+                        <div className="rounded-md border border-blue-500/20 bg-blue-500/5 p-3">
+                            <p className="flex items-center gap-1 text-[10px] font-black uppercase text-blue-300">
+                                <TrendingUp className="h-3 w-3" />
+                                Ticket
                             </p>
+                            <p className="mt-1 truncate text-sm font-black text-blue-200">{formatCurrency(client.average_order_value)}</p>
+                        </div>
+                        <div className="rounded-md border border-border bg-background/45 p-3">
+                            <p className="flex items-center gap-1 text-[10px] font-black uppercase text-muted-foreground">
+                                <Calendar className="h-3 w-3" />
+                                Ultimo
+                            </p>
+                            <p className="mt-1 truncate text-sm font-bold text-slate-200">{formatDate(client.last_order_date)}</p>
                         </div>
                     </div>
                 </div>
-            </motion.div>
+            </motion.article>
         </Link>
     );
 }
